@@ -38,7 +38,6 @@ firebase-debug.*.log
 .firebaserc
 firebase-config.js
 firebase-config.ts
-src/lib/firebase.ts
 
 # Build files
 build/
