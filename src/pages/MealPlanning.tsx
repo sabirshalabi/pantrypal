@@ -153,7 +153,7 @@ export function MealPlanning() {
           <div className="space-y-6">
             {/* Daily Meals */}
             <div className="grid gap-4">
-              {currentPlan.meals.map((dailyMeal) => (
+              {(currentPlan.meals || []).map((dailyMeal) => (
                 <div key={dailyMeal.id} className="flex items-center space-x-4 py-2 border-b border-gray-100">
                   <div className="w-32 font-medium">
                     {format(new Date(dailyMeal.date), 'EEEE')}
@@ -166,11 +166,11 @@ export function MealPlanning() {
             </div>
 
             {/* Other Items */}
-            {currentPlan.otherItems.length > 0 && (
+            {currentPlan.otherItems?.length > 0 && (
               <div>
                 <h3 className="font-medium text-gray-900 mb-2">Other Items</h3>
                 <div className="grid gap-2">
-                  {currentPlan.otherItems.map((item) => (
+                  {(currentPlan.otherItems || []).map((item) => (
                     <div key={item.id} className="flex items-center space-x-4">
                       <input
                         type="checkbox"
@@ -223,11 +223,11 @@ export function MealPlanning() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900">{meal.name}</h3>
-                  {meal.ingredients.length > 0 && (
+                  {meal.ingredients?.length > 0 && (
                     <div className="mt-2">
                       <h4 className="text-sm font-medium text-gray-700 mb-1">Ingredients:</h4>
                       <ul className="text-sm text-gray-600 space-y-1">
-                        {meal.ingredients.map((ingredient) => (
+                        {(meal.ingredients || []).map((ingredient) => (
                           <li key={ingredient.id} className="flex items-center justify-between">
                             <span>{ingredient.name}</span>
                             {ingredient.storeId && (

@@ -66,8 +66,8 @@ export function ShoppingLists() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {lists.map((list) => {
           const progress = calculateProgress(list);
-          const itemCount = list.items?.length || 0;
-          const categories = new Set(list.items?.map(item => item.category) || []);
+          const items = list.items || [];
+          const itemCount = items.length;
           
           return (
             <div 
@@ -77,7 +77,7 @@ export function ShoppingLists() {
             >
               <h3 className="text-lg font-semibold text-gray-900">{list.name}</h3>
               <p className="text-sm text-gray-500 mt-1">
-                {itemCount} items • {categories.size} categories
+                {itemCount} items
               </p>
               <div className="mt-4">
                 <div className="w-full bg-gray-200 rounded-full h-2">

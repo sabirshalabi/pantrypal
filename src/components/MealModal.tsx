@@ -25,7 +25,7 @@ export function MealModal({ isOpen, onClose, meal, stores }: MealModalProps) {
     if (meal) {
       setFormData({
         name: meal.name,
-        ingredients: meal.ingredients,
+        ingredients: meal.ingredients || [],
         favorite: meal.favorite
       });
     } else {
@@ -65,17 +65,28 @@ export function MealModal({ isOpen, onClose, meal, stores }: MealModalProps) {
     try {
       const timestamp = Date.now();
       
+      // Clean up ingredients data to replace undefined with null
+      const cleanedIngredients = formData.ingredients.map(ingredient => ({
+        ...ingredient,
+        storeId: ingredient.storeId || null // Convert undefined to null
+      }));
+
+      const cleanedData = {
+        ...formData,
+        ingredients: cleanedIngredients
+      };
+      
       if (meal) {
         // Update existing meal
         await update(ref(database, `meals/${user.uid}/${meal.id}`), {
-          ...formData,
+          ...cleanedData,
           updatedAt: timestamp
         });
       } else {
         // Create new meal
         const mealRef = push(ref(database, `meals/${user.uid}`));
         await update(mealRef, {
-          ...formData,
+          ...cleanedData,
           id: mealRef.key,
           userId: user.uid,
           createdAt: timestamp,
@@ -135,7 +146,7 @@ export function MealModal({ isOpen, onClose, meal, stores }: MealModalProps) {
             </div>
             
             <div className="space-y-2">
-              {formData.ingredients.map((ingredient, index) => (
+              {(formData.ingredients || []).map((ingredient, index) => (
                 <div key={ingredient.id} className="flex items-center space-x-2">
                   <input
                     type="text"

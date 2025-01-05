@@ -31,7 +31,6 @@ export function ListDetail() {
           items: data.items || {}
         });
       } else {
-        console.log('No list found');
         navigate('/lists');
       }
     });
@@ -74,7 +73,6 @@ export function ListDetail() {
       await update(itemRef, itemData);
       setNewItem({ name: '', quantity: 1, storeId: '' });
     } catch (error) {
-      console.error('Error adding item:', error);
       alert('Failed to add item. Please try again.');
     }
   };
@@ -87,7 +85,6 @@ export function ListDetail() {
         completed: !completed
       });
     } catch (error) {
-      console.error('Error updating item:', error);
       alert('Failed to update item. Please try again.');
     }
   };
@@ -98,7 +95,6 @@ export function ListDetail() {
     try {
       await remove(ref(database, `lists/${user.uid}/${listId}/items/${itemId}`));
     } catch (error) {
-      console.error('Error deleting item:', error);
       alert('Failed to delete item. Please try again.');
     }
   };
@@ -111,7 +107,6 @@ export function ListDetail() {
         storeId: storeId || null
       });
     } catch (error) {
-      console.error('Error updating item store:', error);
       alert('Failed to update item store. Please try again.');
     }
   };
@@ -120,7 +115,28 @@ export function ListDetail() {
     return <div className="p-4">Loading...</div>;
   }
 
-  const items = Object.values(list.items || {}).sort((a, b) => b.addedAt - a.addedAt);
+  // Group items by store
+  const groupItemsByStore = () => {
+    const items = Object.values(list.items || {});
+    const grouped = new Map<string | undefined, ShoppingListItem[]>();
+    
+    // Initialize with empty arrays for each store
+    grouped.set(undefined, []); // For items with no store
+    stores.forEach(store => grouped.set(store.id, []));
+    
+    // Group items
+    items.forEach(item => {
+      const storeItems = grouped.get(item.storeId) || grouped.get(undefined)!;
+      storeItems.push(item);
+    });
+    
+    // Sort items within each group
+    grouped.forEach(items => items.sort((a, b) => b.addedAt - a.addedAt));
+    
+    return grouped;
+  };
+
+  const groupedItems = groupItemsByStore();
 
   return (
     <div className="space-y-6">
@@ -175,68 +191,139 @@ export function ListDetail() {
         </div>
       </form>
 
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-        <div className="space-y-2">
-          {items.map(item => (
-            <div
-              key={item.id}
-              className={`flex items-center justify-between p-2 rounded-md ${
-                item.completed ? 'bg-gray-50' : 'hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center space-x-3 flex-1">
-                <button
-                  onClick={() => toggleItemComplete(item.id, item.completed)}
-                  className={`flex-shrink-0 h-5 w-5 rounded border ${
-                    item.completed
-                      ? 'bg-blue-600 border-blue-600 text-white'
-                      : 'border-gray-300'
-                  } flex items-center justify-center`}
-                >
-                  {item.completed && <Check size={12} />}
-                </button>
-                <span className={item.completed ? 'line-through text-gray-500' : ''}>
-                  {item.quantity > 1 && `${item.quantity} `}
-                  {item.name}
-                </span>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <select
-                  value={item.storeId || ''}
-                  onChange={(e) => updateItemStore(item.id, e.target.value)}
-                  className="text-sm px-2 py-1 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select Store</option>
-                  {stores.map(store => (
-                    <option key={store.id} value={store.id}>
-                      {store.name}
-                    </option>
-                  ))}
-                </select>
-                {item.storeId && (
-                  <StoreIcon 
-                    size={16} 
-                    className="text-blue-600"
-                    title={stores.find(s => s.id === item.storeId)?.name}
-                  />
-                )}
-                <button
-                  onClick={() => deleteItem(item.id)}
-                  className="text-red-500 hover:text-red-600"
-                >
-                  <Trash2 size={16} />
-                </button>
+      <div className="space-y-6">
+        {/* Items with assigned stores */}
+        {stores.map(store => {
+          const storeItems = groupedItems.get(store.id) || [];
+          if (storeItems.length === 0) return null;
+          
+          return (
+            <div key={store.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <StoreIcon 
+                  size={20} 
+                  className="text-blue-600 mr-2"
+                  aria-label={store.name}
+                />
+                {store.name}
+              </h3>
+              <div className="space-y-2">
+                {storeItems.map(item => (
+                  <div
+                    key={item.id}
+                    className={`flex items-center justify-between p-2 rounded-md ${
+                      item.completed ? 'bg-gray-50' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3 flex-1">
+                      <button
+                        onClick={() => toggleItemComplete(item.id, item.completed)}
+                        className={`flex-shrink-0 h-5 w-5 rounded border ${
+                          item.completed
+                            ? 'bg-blue-600 border-blue-600 text-white'
+                            : 'border-gray-300'
+                        } flex items-center justify-center`}
+                      >
+                        {item.completed && <Check size={12} />}
+                      </button>
+                      <span className={item.completed ? 'line-through text-gray-500' : ''}>
+                        {item.quantity > 1 && `${item.quantity} `}
+                        {item.name}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center space-x-4">
+                      <select
+                        value={item.storeId || ''}
+                        onChange={(e) => updateItemStore(item.id, e.target.value)}
+                        className="text-sm px-2 py-1 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select Store</option>
+                        {stores.map(store => (
+                          <option key={store.id} value={store.id}>
+                            {store.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => deleteItem(item.id)}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-          
-          {items.length === 0 && (
+          );
+        })}
+
+        {/* Items with no store assigned */}
+        {(groupedItems.get(undefined) || []).length > 0 && (
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Other Items
+            </h3>
+            <div className="space-y-2">
+              {(groupedItems.get(undefined) || []).map(item => (
+                <div
+                  key={item.id}
+                  className={`flex items-center justify-between p-2 rounded-md ${
+                    item.completed ? 'bg-gray-50' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3 flex-1">
+                    <button
+                      onClick={() => toggleItemComplete(item.id, item.completed)}
+                      className={`flex-shrink-0 h-5 w-5 rounded border ${
+                        item.completed
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : 'border-gray-300'
+                      } flex items-center justify-center`}
+                    >
+                      {item.completed && <Check size={12} />}
+                    </button>
+                    <span className={item.completed ? 'line-through text-gray-500' : ''}>
+                      {item.quantity > 1 && `${item.quantity} `}
+                      {item.name}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <select
+                      value={item.storeId || ''}
+                      onChange={(e) => updateItemStore(item.id, e.target.value)}
+                      className="text-sm px-2 py-1 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Store</option>
+                      {stores.map(store => (
+                        <option key={store.id} value={store.id}>
+                          {store.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => deleteItem(item.id)}
+                      className="text-red-500 hover:text-red-600"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {Object.values(list.items || {}).length === 0 && (
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
             <div className="text-center py-8 text-gray-500">
               No items in this list yet. Add some items to get started!
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
