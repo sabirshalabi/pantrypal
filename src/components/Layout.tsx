@@ -11,7 +11,7 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white shadow-sm">
+      <header className="bg-white shadow-sm fixed top-0 w-full z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShoppingBasket className="text-blue-600" />
@@ -28,11 +28,11 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 pt-20">
         <Outlet />
       </main>
 
-      <nav className="bg-white shadow-lg fixed bottom-0 w-full">
+      <nav className="bg-white shadow-lg fixed bottom-0 w-full pb-6">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-around">
             <NavLink
