@@ -121,21 +121,23 @@ export function MealPlanning() {
       {/* Weekly Plan Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center space-x-4">
+          <div className="inline-flex items-center bg-gray-50 rounded-lg p-1">
             <button
               onClick={handlePreviousWeek}
-              className="p-2 hover:bg-gray-100 rounded-full"
+              className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all"
+              aria-label="Previous week"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={18} />
             </button>
-            <h2 className="text-xl font-semibold">
-              Week of {format(startOfWeek(currentWeek), 'MMM d, yyyy')}
-            </h2>
+            <div className="px-3 font-medium">
+              {format(startOfWeek(currentWeek), 'MMM d')}
+            </div>
             <button
               onClick={handleNextWeek}
-              className="p-2 hover:bg-gray-100 rounded-full"
+              className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all"
+              aria-label="Next week"
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={18} />
             </button>
           </div>
           <button
@@ -152,14 +154,19 @@ export function MealPlanning() {
         {currentPlan ? (
           <div className="space-y-6">
             {/* Daily Meals */}
-            <div className="grid gap-4">
+            <div className="grid grid-cols-1 gap-2">
               {(currentPlan.meals || []).map((dailyMeal) => (
-                <div key={dailyMeal.id} className="flex items-center space-x-4 py-2 border-b border-gray-100">
-                  <div className="w-32 font-medium">
-                    {format(new Date(dailyMeal.date), 'EEEE')}
+                <div 
+                  key={dailyMeal.id} 
+                  className="flex items-center bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition-colors"
+                >
+                  <div className="w-24 font-medium text-gray-600">
+                    {format(new Date(dailyMeal.date), 'EEE')}
                   </div>
-                  <div className="flex-1">
-                    {dailyMeal.mealName || 'No meal planned'}
+                  <div className="flex-1 font-medium">
+                    {dailyMeal.mealName || (
+                      <span className="text-gray-400">No meal planned</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -167,22 +174,22 @@ export function MealPlanning() {
 
             {/* Other Items */}
             {currentPlan.otherItems?.length > 0 && (
-              <div>
-                <h3 className="font-medium text-gray-900 mb-2">Other Items</h3>
+              <div className="mt-6 pt-6 border-t border-gray-100">
+                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Other Items</h3>
                 <div className="grid gap-2">
                   {(currentPlan.otherItems || []).map((item) => (
-                    <div key={item.id} className="flex items-center space-x-4">
+                    <div key={item.id} className="flex items-center space-x-3 bg-gray-50 rounded-lg p-3">
                       <input
                         type="checkbox"
                         checked={item.completed}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         readOnly
                       />
-                      <span className={item.completed ? 'line-through text-gray-500' : ''}>
+                      <span className={`flex-1 ${item.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
                         {item.name}
                       </span>
                       {item.storeId && (
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-400 bg-white px-2 py-1 rounded">
                           {stores.find(s => s.id === item.storeId)?.name}
                         </span>
                       )}
@@ -200,59 +207,60 @@ export function MealPlanning() {
       </div>
 
       {/* Meals Library Section */}
-      <div>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Meals Library</h2>
+      <div className="px-4">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-semibold">Meals Library</h2>
           <button
             onClick={() => {
               setSelectedMeal(undefined);
               setIsMealModalOpen(true);
             }}
-            className="bg-blue-600 text-white p-2 rounded-full shadow-sm hover:bg-blue-700 transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+            aria-label="Add new meal"
           >
             <Plus size={24} />
           </button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-24">
+        <div className="space-y-4 mb-24">
           {meals.map((meal) => (
             <div
               key={meal.id}
-              className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative"
+              className="bg-white rounded-lg p-4 shadow-sm"
             >
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">{meal.name}</h3>
-                <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="text-base font-medium mb-1">{meal.name}</h3>
+                  <p className="text-sm text-gray-500">
+                    {meal.ingredients?.length || 0} ingredients
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
                       setSelectedMeal(meal);
                       setIsMealModalOpen(true);
                     }}
-                    className="text-blue-600 hover:text-blue-700"
+                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    aria-label="Edit meal"
                   >
                     <Edit2 size={20} />
                   </button>
                   <button
                     onClick={() => handleDeleteMeal(meal.id)}
-                    className="text-red-500 hover:text-red-600"
+                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                    aria-label="Delete meal"
                   >
                     <Trash2 size={20} />
-                  </button>
-                  <button
-                    onClick={() => {/* Toggle favorite */}}
-                    className="text-yellow-500 hover:text-yellow-600"
-                  >
-                    {meal.favorite ? <Star size={20} fill="currentColor" /> : <StarOff size={20} />}
                   </button>
                 </div>
               </div>
               {meal.ingredients?.length > 0 && (
-                <div className="mt-2">
-                  <h4 className="text-sm font-medium text-gray-700 mb-1">Ingredients:</h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    {(meal.ingredients || []).map((ingredient) => (
-                      <li key={ingredient.id} className="flex items-center justify-between">
-                        <span>{ingredient.name}</span>
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <ul className="space-y-2">
+                    {(meal.ingredients || []).slice(0, 3).map((ingredient) => (
+                      <li key={ingredient.id} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700">{ingredient.name}</span>
                         {ingredient.storeId && (
                           <span className="text-xs text-gray-500">
                             {stores.find(s => s.id === ingredient.storeId)?.name}
@@ -260,6 +268,11 @@ export function MealPlanning() {
                         )}
                       </li>
                     ))}
+                    {(meal.ingredients?.length || 0) > 3 && (
+                      <li className="text-sm text-gray-500">
+                        +{meal.ingredients!.length - 3} more ingredients
+                      </li>
+                    )}
                   </ul>
                 </div>
               )}
@@ -267,8 +280,8 @@ export function MealPlanning() {
           ))}
 
           {meals.length === 0 && (
-            <div className="col-span-full text-center py-12">
-              <p className="text-gray-500">No meals added yet. Add your first meal to get started!</p>
+            <div className="text-center py-12 text-gray-500">
+              <p>No meals added yet. Add your first meal to get started!</p>
             </div>
           )}
         </div>

@@ -44,6 +44,9 @@ build/
 dist/
 coverage/
 
+# Documentation
+docs/
+
 # Misc
 *.pem
 .cache

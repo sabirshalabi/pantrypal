@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { database } from '../lib/firebase';
 import { ref, push, set } from 'firebase/database';
 import { useAuth } from '../hooks/useAuth';
+import { useFirebase } from '../context/FirebaseContext';
 
 interface NewListModalProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ interface NewListModalProps {
 export function NewListModal({ isOpen, onClose, onListCreated }: NewListModalProps) {
   const [listName, setListName] = useState('');
   const { user } = useAuth();
+  const { database } = useFirebase();
 
   if (!isOpen) return null;
 

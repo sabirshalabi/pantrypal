@@ -2,7 +2,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import './lib/firebase';
+import { FirebaseProvider } from './context/FirebaseContext';
+import { app, auth, database } from './lib/firebase';
+
+// Initialize Firebase first
+const firebaseApp = app;
+const firebaseAuth = auth;
+const firebaseDb = database;
 
 // Register service worker
 if ('serviceWorker' in navigator) {
@@ -43,6 +49,8 @@ if ('serviceWorker' in navigator) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <FirebaseProvider>
+      <App />
+    </FirebaseProvider>
   </StrictMode>
 );
