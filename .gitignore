@@ -38,6 +38,7 @@ firebase-debug.*.log
 .firebaserc
 firebase-config.js
 firebase-config.ts
+public/firebase-messaging-sw.js
 
 # Build files
 build/
