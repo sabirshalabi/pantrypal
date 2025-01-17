@@ -4,10 +4,6 @@ import { load } from 'cheerio';
 import fetch from 'node-fetch';
 
 const app = express();
-const PORT = 3001;
-
-app.use(cors());
-app.use(express.json());
 
 // Common recipe-related terms and patterns
 const RECIPE_PATTERNS = {
@@ -216,6 +212,13 @@ async function intelligentExtraction(html) {
   };
 }
 
+app.use(cors({
+  origin: ['http://localhost:5173', 'https://pantrypal-sabirshalabi.vercel.app'],
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
+app.use(express.json());
+
 app.post('/api/scrape-recipe', async (req, res) => {
   const { url } = req.body;
 
@@ -269,6 +272,4 @@ app.post('/api/scrape-recipe', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+export default app;

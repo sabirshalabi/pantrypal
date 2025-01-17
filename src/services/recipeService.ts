@@ -11,6 +11,10 @@ import {
   set
 } from 'firebase/database';
 
+const API_BASE_URL = import.meta.env.PROD 
+  ? 'https://pantrypal-sabirshalabi.vercel.app/api'
+  : 'http://localhost:3001/api';
+
 export interface Recipe {
   title: string;
   ingredients: string[];
@@ -98,5 +102,27 @@ export async function deleteRecipe(recipeId: string) {
   } catch (error) {
     console.error('Error deleting recipe:', error);
     throw new Error('Failed to delete recipe');
+  }
+}
+
+export async function scrapeRecipe(url: string): Promise<Recipe> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/scrape-recipe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to scrape recipe');
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error scraping recipe:', error);
+    throw error;
   }
 }
