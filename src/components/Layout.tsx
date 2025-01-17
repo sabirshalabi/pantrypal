@@ -1,13 +1,13 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { ListChecks, Store, UtensilsCrossed, Settings, ShoppingBasket } from 'lucide-react';
+import { ListChecks, Store, UtensilsCrossed, Settings, ShoppingBasket, BookOpen } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface LayoutProps {
 }
 
 export function Layout() {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -19,7 +19,7 @@ export function Layout() {
           </div>
           {user && (
             <button 
-              onClick={logout}
+              onClick={signOut}
               className="text-sm text-gray-600 hover:text-gray-900"
             >
               Sign Out
@@ -56,6 +56,17 @@ export function Layout() {
             >
               <Store size={24} />
               <span className="text-xs mt-1">Stores</span>
+            </NavLink>
+            <NavLink
+              to="/recipes"
+              className={({ isActive }) =>
+                `flex flex-col items-center p-4 ${
+                  isActive ? 'text-blue-600' : 'text-gray-600'
+                }`
+              }
+            >
+              <BookOpen size={24} />
+              <span className="text-xs mt-1">Recipes</span>
             </NavLink>
             <NavLink
               to="/meals"

@@ -23,10 +23,18 @@ export function MealModal({ isOpen, onClose, meal, stores }: MealModalProps) {
 
   useEffect(() => {
     if (meal) {
+      // Ensure ingredients are properly initialized
+      const cleanedIngredients = (meal.ingredients || [])
+        .filter(ingredient => ingredient.name.trim().length > 0)
+        .map(ingredient => ({
+          ...ingredient,
+          name: ingredient.name.trim()
+        }));
+
       setFormData({
-        name: meal.name,
-        ingredients: meal.ingredients || [],
-        favorite: meal.favorite
+        name: meal.name || '',
+        ingredients: cleanedIngredients,
+        favorite: meal.favorite || false
       });
     } else {
       setFormData({
@@ -42,7 +50,11 @@ export function MealModal({ isOpen, onClose, meal, stores }: MealModalProps) {
   const handleAddIngredient = () => {
     setFormData({
       ...formData,
-      ingredients: [...formData.ingredients, { id: Date.now().toString(), name: '', storeId: undefined }]
+      ingredients: [...formData.ingredients, {
+        id: `ingredient-${formData.ingredients.length}-${Date.now()}`,
+        name: '',
+        storeId: undefined
+      }]
     });
   };
 
@@ -54,7 +66,10 @@ export function MealModal({ isOpen, onClose, meal, stores }: MealModalProps) {
 
   const handleIngredientChange = (index: number, field: keyof Ingredient, value: string) => {
     const newIngredients = [...formData.ingredients];
-    newIngredients[index] = { ...newIngredients[index], [field]: value };
+    newIngredients[index] = { 
+      ...newIngredients[index], 
+      [field]: field === 'storeId' ? (value || undefined) : value 
+    };
     setFormData({ ...formData, ingredients: newIngredients });
   };
 
@@ -65,18 +80,21 @@ export function MealModal({ isOpen, onClose, meal, stores }: MealModalProps) {
     try {
       const timestamp = Date.now();
       
-      // Clean up ingredients data to replace undefined with null
-      const cleanedIngredients = formData.ingredients.map(ingredient => ({
-        ...ingredient,
-        storeId: ingredient.storeId || null // Convert undefined to null
-      }));
+      // Clean up ingredients data
+      const cleanedIngredients = formData.ingredients
+        .filter(ingredient => ingredient.name.trim().length > 0)
+        .map(ingredient => ({
+          ...ingredient,
+          name: ingredient.name.trim(),
+          storeId: ingredient.storeId || null
+        }));
 
       const cleanedData = {
         ...formData,
         ingredients: cleanedIngredients
       };
       
-      if (meal) {
+      if (meal?.id) {
         // Update existing meal
         await update(ref(database, `meals/${user.uid}/${meal.id}`), {
           ...cleanedData,
@@ -112,7 +130,7 @@ export function MealModal({ isOpen, onClose, meal, stores }: MealModalProps) {
         </button>
         
         <h2 className="text-xl font-semibold mb-4">
-          {meal ? 'Edit Meal' : 'Add New Meal'}
+          {meal?.id ? 'Edit Meal' : 'Add New Meal'}
         </h2>
         
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -146,7 +164,7 @@ export function MealModal({ isOpen, onClose, meal, stores }: MealModalProps) {
             </div>
             
             <div className="space-y-2">
-              {(formData.ingredients || []).map((ingredient, index) => (
+              {formData.ingredients.map((ingredient, index) => (
                 <div key={ingredient.id} className="flex items-center space-x-2">
                   <input
                     type="text"
@@ -176,6 +194,9 @@ export function MealModal({ isOpen, onClose, meal, stores }: MealModalProps) {
                   </button>
                 </div>
               ))}
+              {formData.ingredients.length === 0 && (
+                <p className="text-gray-500 text-sm italic">No ingredients added yet</p>
+              )}
             </div>
           </div>
 
@@ -204,7 +225,7 @@ export function MealModal({ isOpen, onClose, meal, stores }: MealModalProps) {
               type="submit"
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              {meal ? 'Save Changes' : 'Add Meal'}
+              {meal?.id ? 'Save Changes' : 'Add Meal'}
             </button>
           </div>
         </form>

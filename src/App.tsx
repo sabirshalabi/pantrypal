@@ -8,6 +8,7 @@ import { StoreManagement } from './pages/StoreManagement';
 import { MealPlanning } from './pages/MealPlanning';
 import { Settings } from './pages/Settings';
 import { ListDetail } from './pages/ListDetail';
+import { Recipes } from './pages/Recipes';
 import { checkPWAStatus } from './utils/pwaStatus';
 
 function App() {
@@ -36,6 +37,7 @@ function App() {
           <Route path="/lists/:listId" element={<ListDetail />} />
           <Route path="/stores" element={<StoreManagement />} />
           <Route path="/meals" element={<MealPlanning />} />
+          <Route path="/recipes/*" element={<Recipes />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
