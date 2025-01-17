@@ -9,6 +9,7 @@ import { MealPlanning } from './pages/MealPlanning';
 import { Settings } from './pages/Settings';
 import { ListDetail } from './pages/ListDetail';
 import { Recipes } from './pages/Recipes';
+import { ImportList } from './pages/ImportList';
 import { checkPWAStatus } from './utils/pwaStatus';
 
 function App() {
@@ -19,9 +20,6 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        
-        {/* Protected Routes */}
         <Route
           element={
             <PrivateRoute>
@@ -40,6 +38,12 @@ function App() {
           <Route path="/recipes/*" element={<Recipes />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
+        <Route path="/login" element={<Login />} />
+        <Route path="/import-list/:shareToken" element={
+          <PrivateRoute>
+            <ImportList />
+          </PrivateRoute>
+        } />
       </Routes>
     </BrowserRouter>
   );

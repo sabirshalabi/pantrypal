@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Moon, Bell, Share2 } from 'lucide-react';
+import { ShareListModal } from '../components/ShareListModal';
 
 export function Settings() {
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
@@ -34,11 +37,19 @@ export function Settings() {
             <Share2 size={20} className="text-gray-500 mr-3" />
             <span className="font-medium">Share Lists</span>
           </div>
-          <button className="text-blue-600 hover:text-blue-700">
+          <button 
+            onClick={() => setIsShareModalOpen(true)}
+            className="text-blue-600 hover:text-blue-700"
+          >
             Manage
           </button>
         </div>
       </div>
+
+      <ShareListModal 
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+      />
     </div>
   );
 }
