@@ -1,17 +1,30 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
+
+export const config = {
+  runtime: 'edge'
+};
 
 export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
+  req: NextRequest
 ) {
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 
-  const { url } = req.query;
+  const url = req.nextUrl.searchParams.get('url');
 
-  if (!url || typeof url !== 'string') {
-    return res.status(400).json({ error: 'URL parameter is required' });
+  if (!url) {
+    return new Response(JSON.stringify({ error: 'URL parameter is required' }), {
+      status: 400,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 
   try {
@@ -24,12 +37,21 @@ export default async function handler(
     const buffer = await response.arrayBuffer();
     const contentType = response.headers.get('content-type') || 'image/jpeg';
 
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
-    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins in development
-    res.send(Buffer.from(buffer));
+    return new Response(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000',
+        'Access-Control-Allow-Origin': '*',
+      },
+    });
   } catch (error) {
     console.error('Error proxying image:', error);
-    res.status(500).json({ error: 'Failed to proxy image' });
+    return new Response(JSON.stringify({ error: 'Failed to proxy image' }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 }
