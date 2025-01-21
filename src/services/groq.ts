@@ -41,14 +41,14 @@ Guidelines:
 6. Consider texture and flavor contrasts
 7. Avoid using culture influences in the names like (levantine, arabic, middle eastern, etc..)
 
-IMPORTANT: Respond ONLY with a valid JSON object in this exact format. No additional text:
+IMPORTANT: You must respond with ONLY a valid JSON object in this EXACT format, with NO additional text or characters before or after:
 
 {
   "title": "Recipe Title",
   "prepingTime": number_in_minutes,
   "cookingTime": number_in_minutes,
-  "ingredients": ["ingredient 1", "ingredient 2", ...],
-  "instructions": ["step 1", "step 2", ...],
+  "ingredients": ["ingredient 1", "ingredient 2"],
+  "instructions": ["step 1", "step 2"],
   "matchPercentage": number_between_0_and_100
 }`;
 
@@ -67,19 +67,37 @@ IMPORTANT: Respond ONLY with a valid JSON object in this exact format. No additi
             content: prompt
           }
         ],
-        temperature: 2, // Increased for more variation
+        temperature: 2,
         max_tokens: 1800
       })
     });
 
     const data = await response.json();
     if (!response.ok) {
+      console.error('Groq API error:', data);
       throw new Error(data.error?.message || 'Failed to generate recipe');
     }
 
-    const recipeString = data.choices[0].message.content;
-    const recipe = JSON.parse(recipeString);
-    return [recipe];
+    console.log('Raw Groq response:', data.choices[0].message.content);
+
+    try {
+      const recipeString = data.choices[0].message.content.trim();
+      const recipe = JSON.parse(recipeString);
+
+      // Validate the recipe object has all required fields
+      const requiredFields = ['title', 'prepingTime', 'cookingTime', 'ingredients', 'instructions', 'matchPercentage'];
+      const missingFields = requiredFields.filter(field => !(field in recipe));
+      
+      if (missingFields.length > 0) {
+        throw new Error(`Invalid recipe format. Missing fields: ${missingFields.join(', ')}`);
+      }
+
+      return [recipe];
+    } catch (parseError) {
+      console.error('Failed to parse recipe JSON:', parseError);
+      console.error('Raw content:', data.choices[0].message.content);
+      throw new Error('Invalid recipe format received from API');
+    }
   } catch (error) {
     console.error('Error in generateRecipe:', error);
     throw error;

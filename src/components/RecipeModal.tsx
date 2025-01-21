@@ -81,23 +81,34 @@ export const RecipeModal: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      // Make three parallel API calls
       const recipePromises = Array(3).fill(null).map(() => 
         generateRecipe({
           ingredients: store.ingredients.map((i) => i.name),
           mealType: store.mealType,
+        }).catch(err => {
+          console.error('Recipe generation error:', err);
+          return null; // Return null for failed recipes
         })
       );
 
       const results = await Promise.all(recipePromises);
-      const allRecipes = results.flat().map((recipe, index) => ({
-        ...recipe,
-        id: `${index}`, // Ensure unique IDs
-      }));
+      const validRecipes = results
+        .filter((result): result is Recipe[] => result !== null)
+        .flat()
+        .map((recipe, index) => ({
+          ...recipe,
+          id: `${index}`,
+        }));
 
-      setRecipes(allRecipes);
+      if (validRecipes.length === 0) {
+        throw new Error('Failed to generate any valid recipes. Please try again.');
+      }
+
+      setRecipes(validRecipes);
     } catch (err) {
       console.error('Error generating recipes:', err);
-      setError('Failed to generate recipes. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to generate recipes. Please try again.');
     } finally {
       setLoading(false);
     }
