@@ -1,4 +1,5 @@
 import Together from 'together-ai';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 // Get API key from environment variables
 const TOGETHER_API_KEY = import.meta.env.VITE_TOGETHER_API_KEY;
@@ -18,6 +19,12 @@ export interface ImageGenerationParams {
   title: string;
   ingredients: string[];
   mealType: string;
+}
+
+async function downloadImage(url: string): Promise<Blob> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed to download image');
+  return await response.blob();
 }
 
 export async function generateRecipeImage(params: ImageGenerationParams): Promise<string> {
@@ -79,9 +86,26 @@ export async function generateRecipeImage(params: ImageGenerationParams): Promis
       throw new Error('No image generated from Together AI');
     }
 
-    const url = imageResponse.data[0].url;
-    console.log('Successfully generated image URL:', url);
-    return url;
+    const generatedImageUrl = imageResponse.data[0].url;
+    console.log('Successfully generated image URL:', generatedImageUrl);
+
+    // Download the image and upload to Firebase Storage
+    console.log('Downloading generated image...');
+    const imageBlob = await downloadImage(generatedImageUrl);
+
+    // Upload to Firebase Storage
+    const storage = getStorage();
+    const imagePath = `recipe-images/${Date.now()}-${params.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}.jpg`;
+    const imageRef = storageRef(storage, imagePath);
+
+    console.log('Uploading to Firebase Storage...');
+    await uploadBytes(imageRef, imageBlob);
+
+    // Get the permanent URL
+    const permanentUrl = await getDownloadURL(imageRef);
+    console.log('Permanent Firebase Storage URL:', permanentUrl);
+
+    return permanentUrl;
   } catch (error) {
     console.error('Error generating recipe image:', error);
     if (error instanceof Error) {
