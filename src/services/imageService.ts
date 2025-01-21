@@ -5,6 +5,11 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'fire
 const TOGETHER_API_KEY = import.meta.env.VITE_TOGETHER_API_KEY;
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
+// Get base URL for API endpoints
+const API_BASE_URL = import.meta.env.PROD 
+  ? 'https://pantrypal-liard.vercel.app/api'
+  : 'http://localhost:3000/api';
+
 if (!TOGETHER_API_KEY) {
   console.error('Missing VITE_TOGETHER_API_KEY environment variable');
 }
@@ -22,8 +27,15 @@ export interface ImageGenerationParams {
 }
 
 async function downloadImage(url: string): Promise<Blob> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Failed to download image');
+  // Use our proxy endpoint to avoid CORS issues
+  const proxyUrl = `${API_BASE_URL}/proxy-image?url=${encodeURIComponent(url)}`;
+  const response = await fetch(proxyUrl);
+  
+  if (!response.ok) {
+    console.error('Failed to download image:', response.statusText);
+    throw new Error('Failed to download image');
+  }
+  
   return await response.blob();
 }
 
@@ -89,7 +101,7 @@ export async function generateRecipeImage(params: ImageGenerationParams): Promis
     const generatedImageUrl = imageResponse.data[0].url;
     console.log('Successfully generated image URL:', generatedImageUrl);
 
-    // Download the image and upload to Firebase Storage
+    // Download the image through our proxy and upload to Firebase Storage
     console.log('Downloading generated image...');
     const imageBlob = await downloadImage(generatedImageUrl);
 
