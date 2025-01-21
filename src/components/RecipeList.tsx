@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Clock, Users, Plus, CookingPot } from 'lucide-react';
+import { Clock, Users, Plus, CookingPot, ImageIcon } from 'lucide-react';
 import type { Recipe } from '../services/recipeService';
 import { getUserRecipes } from '../services/recipeService';
 import { useAuth } from '../hooks/useAuth';
@@ -62,15 +62,19 @@ export function RecipeList() {
         to={`/recipes/${recipe.id}`}
         className="block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
       >
-        {recipe.imageUrl && (
-          <div className="relative h-48 rounded-t-lg overflow-hidden">
+        <div className="relative h-48 rounded-t-lg overflow-hidden bg-gray-100">
+          {recipe.imageUrl ? (
             <img
               src={recipe.imageUrl}
               alt={recipe.title}
               className="w-full h-full object-cover"
             />
-          </div>
-        )}
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+              <ImageIcon className="w-12 h-12 text-gray-400" />
+            </div>
+          )}
+        </div>
         <div className="p-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">{recipe.title}</h3>
           <div className="flex items-center gap-4 text-sm text-gray-500">
@@ -107,7 +111,7 @@ export function RecipeList() {
           className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           <Plus className="h-4 w-4 mr-1" />
-          Import Recipe
+          Add Recipe
         </Link>
       </div>
 

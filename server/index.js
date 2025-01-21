@@ -273,3 +273,5 @@ app.post('/api/scrape-recipe', async (req, res) => {
 });
 
 export default app;
+
+app.listen(3001, () => console.log('Server listening on port 3001'));

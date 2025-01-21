@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { saveRecipe } from '../services/recipeService';
 import { useAuth } from '../hooks/useAuth';
 import type { Recipe } from '../services/recipeService';
+import { RecipeModal } from './RecipeModal';
 
 export function RecipeImporter() {
   const [url, setUrl] = useState('');
@@ -62,7 +63,7 @@ export function RecipeImporter() {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-4">Import Recipe</h2>
+      <h2 className="text-2xl font-bold mb-4">Add Recipe</h2>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -167,6 +168,14 @@ export function RecipeImporter() {
           </button>
         </motion.div>
       )}
+
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">Or Generate a Recipe</h2>
+        <p className="text-gray-600 mb-4">
+          Don't have a recipe URL? Generate a recipe based on your available ingredients!
+        </p>
+        <RecipeModal />
+      </div>
     </div>
   );
 }
