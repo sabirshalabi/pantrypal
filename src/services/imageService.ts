@@ -1,6 +1,18 @@
 import Together from 'together-ai';
 
-const together = new Together({ apiKey: import.meta.env.VITE_TOGETHER_API_KEY });
+// Get API key from environment variables
+const TOGETHER_API_KEY = import.meta.env.VITE_TOGETHER_API_KEY;
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+
+if (!TOGETHER_API_KEY) {
+  console.error('Missing VITE_TOGETHER_API_KEY environment variable');
+}
+
+if (!GROQ_API_KEY) {
+  console.error('Missing VITE_GROQ_API_KEY environment variable');
+}
+
+const together = new Together({ apiKey: TOGETHER_API_KEY || '' });
 
 export interface ImageGenerationParams {
   title: string;
@@ -9,6 +21,10 @@ export interface ImageGenerationParams {
 }
 
 export async function generateRecipeImage(params: ImageGenerationParams): Promise<string> {
+  if (!TOGETHER_API_KEY || !GROQ_API_KEY) {
+    throw new Error('Missing required API keys. Please check your environment variables.');
+  }
+
   try {
     console.log('Starting image generation with params:', params);
     
@@ -16,7 +32,7 @@ export async function generateRecipeImage(params: ImageGenerationParams): Promis
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
