@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChefHat, Clock, Plus, Save, Bot } from 'lucide-react';
 import { create } from 'zustand';
-import { generateRecipe } from '../services/groq';
-import { saveRecipe } from '../services/recipeService';
+import { generateRecipe, saveRecipe, type Recipe, type RecipeFilters, type RecipeIngredient } from '../services/recipeService';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { generateRecipeImage } from '../services/imageService';
@@ -14,28 +13,42 @@ interface Ingredient {
   name: string;
 }
 
-interface Recipe {
-  id: string;
-  title: string;
-  cookingTime: number;
-  prepingTime: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  matchPercentage: number;
-  instructions: string[];
-  ingredients: string[];
+interface GeneratedRecipe extends Recipe {
+  tempId: string;
 }
 
 interface RecipeModalStore {
   ingredients: Ingredient[];
   mealType: string | null;
+  dietary: string[];
+  difficulty: 'beginner' | 'intermediate' | 'advanced' | null;
   addIngredient: (ingredient: Ingredient) => void;
   removeIngredient: (id: string) => void;
   setMealType: (type: string) => void;
+  setDietary: (restrictions: string[]) => void;
+  setDifficulty: (level: 'beginner' | 'intermediate' | 'advanced' | null) => void;
 }
+
+const dietaryOptions = [
+  'Vegetarian',
+  'Vegan',
+  'Gluten-Free',
+  'Dairy-Free',
+  'Low-Carb',
+  'Keto'
+];
+
+const difficultyLevels: Array<'beginner' | 'intermediate' | 'advanced'> = [
+  'beginner',
+  'intermediate',
+  'advanced'
+];
 
 const useRecipeStore = create<RecipeModalStore>((set) => ({
   ingredients: [],
   mealType: null,
+  dietary: [],
+  difficulty: null,
   addIngredient: (ingredient) => 
     set((state) => ({ ingredients: [...state.ingredients, ingredient] })),
   removeIngredient: (id) =>
@@ -43,6 +56,8 @@ const useRecipeStore = create<RecipeModalStore>((set) => ({
       ingredients: state.ingredients.filter((ing) => ing.id !== id) 
     })),
   setMealType: (type) => set({ mealType: type }),
+  setDietary: (restrictions) => set({ dietary: restrictions }),
+  setDifficulty: (level) => set({ difficulty: level })
 }));
 
 const mealTypes = [
@@ -56,7 +71,7 @@ const mealTypes = [
 
 export const RecipeModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [generatedRecipes, setGeneratedRecipes] = useState<GeneratedRecipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
@@ -81,31 +96,21 @@ export const RecipeModal: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // Make three parallel API calls
-      const recipePromises = Array(3).fill(null).map(() => 
-        generateRecipe({
-          ingredients: store.ingredients.map((i) => i.name),
-          mealType: store.mealType,
-        }).catch(err => {
-          console.error('Recipe generation error:', err);
-          return null; // Return null for failed recipes
-        })
-      );
+      const filters: RecipeFilters = {
+        ingredients: store.ingredients.map(i => i.name),
+        dietary: store.dietary,
+        difficulty: store.difficulty || undefined
+      };
 
-      const results = await Promise.all(recipePromises);
-      const validRecipes = results
-        .filter((result): result is Recipe[] => result !== null)
-        .flat()
-        .map((recipe, index) => ({
-          ...recipe,
-          id: `${index}`,
-        }));
+      const generatedRecipe = await generateRecipe(filters);
+      
+      // Add temporary ID for UI handling
+      const recipeWithId = {
+        ...generatedRecipe,
+        tempId: Math.random().toString(36).substr(2, 9)
+      };
 
-      if (validRecipes.length === 0) {
-        throw new Error('Failed to generate any valid recipes. Please try again.');
-      }
-
-      setRecipes(validRecipes);
+      setGeneratedRecipes([recipeWithId]);
     } catch (err) {
       console.error('Error generating recipes:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate recipes. Please try again.');
@@ -114,53 +119,40 @@ export const RecipeModal: React.FC = () => {
     }
   };
 
-  const handleSaveRecipe = async (recipe: Recipe) => {
+  const handleSaveRecipe = async (recipe: Recipe & { tempId: string }) => {
     if (!user) return;
 
-    setSaving(prev => ({ ...prev, [recipe.id]: true }));
+    setSaving(prev => ({ ...prev, [recipe.tempId]: true }));
     try {
       let imageUrl = undefined;
-      console.log('Starting recipe save process:', recipe);
       
-      // Check if this is a generated recipe (it won't have a sourceUrl yet)
-      const isGeneratedRecipe = !recipe.sourceUrl && recipe.matchPercentage !== undefined;
-      console.log('Is this a generated recipe?', isGeneratedRecipe);
-      
-      if (isGeneratedRecipe) {
-        console.log('Attempting to generate image for AI recipe');
-        try {
-          imageUrl = await generateRecipeImage({
-            title: recipe.title,
-            ingredients: recipe.ingredients,
-            mealType: 'main dish'
-          });
-          console.log('Successfully generated image:', imageUrl);
-        } catch (error) {
-          console.error('Failed to generate image:', error);
-        }
-      } else {
-        console.log('Not an AI-generated recipe, skipping image generation');
+      try {
+        imageUrl = await generateRecipeImage({
+          title: recipe.title,
+          ingredients: Array.isArray(recipe.ingredients) 
+            ? recipe.ingredients.map(ing => 
+                typeof ing === 'string' ? ing : `${ing.amount} ${ing.item}`
+              )
+            : [],
+          mealType: store.mealType || 'main dish'
+        });
+      } catch (error) {
+        console.error('Failed to generate image:', error);
       }
 
       const recipeToSave = {
-        title: recipe.title,
-        ingredients: recipe.ingredients,
-        instructions: recipe.instructions,
-        prepTime: `PT${recipe.prepingTime}M`,
-        cookTime: `PT${recipe.cookingTime}M`,
+        ...recipe,
         userId: user.uid,
-        sourceUrl: isGeneratedRecipe ? 'Generated with PantryPal AI' : recipe.sourceUrl,
-        ...(imageUrl && { imageUrl })
+        imageUrl
       };
       
-      console.log('Saving recipe with data:', recipeToSave);
       const recipeId = await saveRecipe(recipeToSave);
       setIsOpen(false);
       navigate(`/recipes/${recipeId}`);
     } catch (error) {
       console.error('Failed to save recipe:', error);
     } finally {
-      setSaving(prev => ({ ...prev, [recipe.id]: false }));
+      setSaving(prev => ({ ...prev, [recipe.tempId]: false }));
     }
   };
 
@@ -237,6 +229,53 @@ export const RecipeModal: React.FC = () => {
                 </div>
               </div>
 
+              {/* Dietary Restrictions */}
+              <div className="mb-6">
+                <h3 className="font-medium mb-2">Dietary Restrictions</h3>
+                <div className="flex flex-wrap gap-2">
+                  {dietaryOptions.map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => {
+                        const isSelected = store.dietary.includes(option);
+                        store.setDietary(
+                          isSelected
+                            ? store.dietary.filter(d => d !== option)
+                            : [...store.dietary, option]
+                        );
+                      }}
+                      className={`px-3 py-1 rounded-full border transition-colors ${
+                        store.dietary.includes(option)
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'border-gray-300 hover:border-blue-500'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Difficulty Selection */}
+              <div className="mb-6">
+                <h3 className="font-medium mb-2">Difficulty Level</h3>
+                <div className="flex gap-3">
+                  {difficultyLevels.map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => store.setDifficulty(level)}
+                      className={`px-4 py-2 rounded-md border transition-colors ${
+                        store.difficulty === level
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'border-gray-300 hover:border-blue-500'
+                      }`}
+                    >
+                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Meal Type Selection */}
               <div className="grid grid-cols-3 gap-3 mb-6">
                 {mealTypes.map((type) => (
@@ -266,7 +305,7 @@ export const RecipeModal: React.FC = () => {
                   >
                     <ChefHat className="w-12 h-12 text-blue-500" />
                   </motion.div>
-                  <p className="text-gray-600">Crafting your recipes...</p>
+                  <p className="text-gray-600">Crafting your recipe...</p>
                 </div>
               ) : error ? (
                 <div className="text-center p-4">
@@ -278,10 +317,10 @@ export const RecipeModal: React.FC = () => {
                     Try Again
                   </button>
                 </div>
-              ) : recipes.length > 0 ? (
+              ) : generatedRecipes.length > 0 ? (
                 <div className="grid gap-4">
-                  {recipes.map((recipe) => (
-                    <div key={recipe.id} className="p-4 bg-white rounded-lg shadow">
+                  {generatedRecipes.map((recipe) => (
+                    <div key={recipe.tempId} className="p-4 bg-white rounded-lg shadow">
                       <Disclosure>
                         <DisclosureTrigger>
                           <div className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-2 rounded-md">
@@ -291,10 +330,10 @@ export const RecipeModal: React.FC = () => {
                                 e.stopPropagation();
                                 handleSaveRecipe(recipe);
                               }}
-                              disabled={saving[recipe.id]}
+                              disabled={saving[recipe.tempId]}
                               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-green-500"
                             >
-                              {saving[recipe.id] ? (
+                              {saving[recipe.tempId] ? (
                                 <motion.div
                                   animate={{ rotate: 360 }}
                                   transition={{ repeat: Infinity, duration: 1 }}
@@ -306,42 +345,85 @@ export const RecipeModal: React.FC = () => {
                                 <Save className="h-5 w-5 mr-2" />
                               )}
                               <span>
-                                {saving[recipe.id] ? 'Generating Image...' : 'Save'}
+                                {saving[recipe.tempId] ? 'Generating Image...' : 'Save'}
                               </span>
                             </button>
                           </div>
                         </DisclosureTrigger>
                         <DisclosureContent>
                           <div className="mt-4">
-                            <div className="flex gap-4 text-gray-600 text-sm mb-4">
-                              <div className="flex flex-col items-center">
-                                <div className="flex items-center mb-1">
-                                  <Clock className="w-4 h-4 mr-1" />
-                                  <span>Prep:</span>
+                            {recipe.description && (
+                              <p className="text-gray-600 mb-4">{recipe.description}</p>
+                            )}
+
+                            <div className="grid grid-cols-3 gap-4 mb-4">
+                              {recipe.prepTime && (
+                                <div className="flex flex-col items-center">
+                                  <div className="flex items-center mb-1">
+                                    <Clock className="w-4 h-4 mr-1" />
+                                    <span>Prep:</span>
+                                  </div>
+                                  <span>{recipe.prepTime}</span>
                                 </div>
-                                <span>{recipe.prepingTime} mins</span>
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <div className="flex items-center mb-1">
-                                  <Clock className="w-4 h-4 mr-1" />
-                                  <span>Cook:</span>
+                              )}
+                              {recipe.cookTime && (
+                                <div className="flex flex-col items-center">
+                                  <div className="flex items-center mb-1">
+                                    <Clock className="w-4 h-4 mr-1" />
+                                    <span>Cook:</span>
+                                  </div>
+                                  <span>{recipe.cookTime}</span>
                                 </div>
-                                <span>{recipe.cookingTime} mins</span>
-                              </div>
-                              <div className="flex flex-col items-center">
-                                <div className="flex items-center mb-1">
-                                  <Bot className="w-4 h-4 mr-1" />
-                                  <span>Match:</span>
+                              )}
+                              {recipe.difficulty && (
+                                <div className="flex flex-col items-center">
+                                  <div className="flex items-center mb-1">
+                                    <ChefHat className="w-4 h-4 mr-1" />
+                                    <span>Difficulty:</span>
+                                  </div>
+                                  <span className={
+                                    recipe.difficulty === 'advanced' ? 'text-red-600' :
+                                    recipe.difficulty === 'intermediate' ? 'text-yellow-600' :
+                                    'text-green-600'
+                                  }>{recipe.difficulty}</span>
                                 </div>
-                                <span>{recipe.matchPercentage}%</span>
-                              </div>
+                              )}
                             </div>
+
+                            {recipe.nutrition && (
+                              <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                                <h4 className="font-medium mb-2">Nutrition Facts</h4>
+                                <div className="grid grid-cols-3 gap-4 text-sm">
+                                  <div>
+                                    <span className="font-medium">Calories:</span>{' '}
+                                    {recipe.nutrition.calories}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Protein:</span>{' '}
+                                    {recipe.nutrition.protein}g
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Carbs:</span>{' '}
+                                    {recipe.nutrition.carbs}g
+                                  </div>
+                                </div>
+                                {recipe.nutrition.disclaimer && (
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    {recipe.nutrition.disclaimer}
+                                  </p>
+                                )}
+                              </div>
+                            )}
 
                             <div className="mb-4">
                               <h4 className="font-medium mb-2">Ingredients:</h4>
                               <ul className="list-disc list-inside space-y-1">
-                                {recipe.ingredients.map((ingredient, index) => (
-                                  <li key={index}>{ingredient}</li>
+                                {recipe.ingredients.map((ingredient: string | RecipeIngredient, i: number) => (
+                                  <li key={i}>
+                                    {typeof ingredient === 'string'
+                                      ? ingredient
+                                      : `${ingredient.amount} ${ingredient.item}`}
+                                  </li>
                                 ))}
                               </ul>
                             </div>
@@ -349,8 +431,8 @@ export const RecipeModal: React.FC = () => {
                             <div>
                               <h4 className="font-medium mb-2">Instructions:</h4>
                               <ol className="list-decimal list-inside space-y-2">
-                                {recipe.instructions.map((instruction, index) => (
-                                  <li key={index} className="leading-relaxed">
+                                {recipe.instructions.map((instruction: string, i: number) => (
+                                  <li key={i} className="leading-relaxed">
                                     {instruction}
                                   </li>
                                 ))}
