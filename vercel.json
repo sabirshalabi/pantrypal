@@ -25,5 +25,6 @@
   ],
   "env": {
     "DEEPSEEK_API_KEY": "@deepseek_api_key"
-  }
+  },
+  "alias": ["pantrypal-liard.vercel.app"]
 }
