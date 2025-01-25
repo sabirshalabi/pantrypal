@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Clock, Users, ArrowLeft, Globe, Trash2, AlertCircle, BookOpen, Bot, Plus } from 'lucide-react';
@@ -89,12 +89,19 @@ export function RecipeDetail() {
   const handleAddToMeals = () => {
     if (!recipe) return;
 
-    // Filter out any empty ingredients and clean up the text
-    const cleanedIngredients = recipe.ingredients
-      .filter(ingredient => ingredient.trim().length > 0)
+    // Convert recipe ingredients to meal ingredients
+    const mealIngredients = recipe.ingredients
+      .filter(ingredient => {
+        const text = typeof ingredient === 'string'
+          ? ingredient
+          : `${ingredient.amount} ${ingredient.item}`;
+        return text.length > 0;
+      })
       .map((ingredient, index) => ({
         id: `ingredient-${index}-${Date.now()}`,
-        name: ingredient.trim(),
+        name: typeof ingredient === 'string'
+          ? ingredient
+          : `${ingredient.amount} ${ingredient.item}`,
         storeId: undefined
       }));
 
@@ -169,7 +176,17 @@ export function RecipeDetail() {
 
       <h1 className="text-3xl font-bold mb-4">{recipe.title}</h1>
 
+      {recipe.description && (
+        <p className="text-gray-600 mb-6">{recipe.description}</p>
+      )}
+
       <div className="flex flex-wrap items-center gap-6 text-gray-500 mb-8">
+        {recipe.difficulty && (
+          <div className="flex items-center">
+            <BookOpen className="h-5 w-5 mr-1" />
+            <span>Difficulty: {recipe.difficulty}</span>
+          </div>
+        )}
         {recipe.prepTime && (
           <div className="flex items-center">
             <Clock className="h-5 w-5 mr-1" />
@@ -206,19 +223,33 @@ export function RecipeDetail() {
             </a>
           )
         )}
+        {recipe.nutrition && (
+          <div className="flex flex-col text-gray-500">
+            <span>Calories: {recipe.nutrition.calories}</span>
+            <span>Protein: {recipe.nutrition.protein}g</span>
+            <span>Carbs: {recipe.nutrition.carbs}g</span>
+            {recipe.nutrition.disclaimer && (
+              <span className="text-xs text-gray-400 mt-1">
+                {recipe.nutrition.disclaimer}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
         <div>
           <h2 className="text-xl font-semibold mb-4">Ingredients</h2>
-          {recipe.ingredients.length > 0 ? (
+          {recipe.ingredients && recipe.ingredients.length > 0 ? (
             <ul className="space-y-2">
               {recipe.ingredients.map((ingredient, index) => (
                 <li key={index} className="flex items-start">
-                  <span className="h-5 w-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm mr-3 mt-0.5">
-                    •
+                  <span className="h-2 w-2 rounded-full bg-blue-500 mt-2 mr-3" />
+                  <span className="text-gray-700">
+                    {typeof ingredient === 'string' 
+                      ? ingredient 
+                      : `${ingredient.amount || ''} ${ingredient.item}`.trim()}
                   </span>
-                  {ingredient}
                 </li>
               ))}
             </ul>
@@ -229,14 +260,14 @@ export function RecipeDetail() {
 
         <div>
           <h2 className="text-xl font-semibold mb-4">Instructions</h2>
-          {recipe.instructions.length > 0 ? (
+          {recipe.instructions && recipe.instructions.length > 0 ? (
             <ol className="space-y-4">
               {recipe.instructions.map((instruction, index) => (
                 <li key={index} className="flex items-start">
-                  <span className="h-5 w-5 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-sm mr-3 mt-0.5">
+                  <span className="h-6 w-6 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-sm mr-3">
                     {index + 1}
                   </span>
-                  {instruction}
+                  <span className="text-gray-700 flex-1">{instruction}</span>
                 </li>
               ))}
             </ol>
@@ -255,10 +286,17 @@ export function RecipeDetail() {
           id: '',
           name: recipe?.title || '',
           ingredients: recipe?.ingredients
-            .filter(ingredient => ingredient.trim().length > 0)
+            .filter(ingredient => {
+              const text = typeof ingredient === 'string'
+                ? ingredient
+                : `${ingredient.amount} ${ingredient.item}`;
+              return text.length > 0;
+            })
             .map((ingredient, index) => ({
               id: `ingredient-${index}-${Date.now()}`,
-              name: ingredient.trim(),
+              name: typeof ingredient === 'string'
+                ? ingredient
+                : `${ingredient.amount} ${ingredient.item}`,
               storeId: undefined
             })) || [],
           favorite: false,

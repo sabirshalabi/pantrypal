@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { saveRecipe } from '../services/recipeService';
+import { saveRecipe, scrapeRecipe } from '../services/recipeService';
 import { useAuth } from '../hooks/useAuth';
 import type { Recipe } from '../services/recipeService';
 import { RecipeModal } from './RecipeModal';
@@ -12,6 +12,7 @@ export function RecipeImporter() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [useLLM, setUseLLM] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -20,23 +21,9 @@ export function RecipeImporter() {
     setLoading(true);
     setError(null);
     setRecipe(null);
-
-    try {
-      const response = await fetch('/api/scrape-recipe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to import recipe');
-      }
-
-      const data = await response.json();
-      setRecipe(data);
+try {
+  const scrapedRecipe = await scrapeRecipe(url, useLLM);
+  setRecipe(scrapedRecipe);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import recipe');
     } finally {
@@ -49,9 +36,24 @@ export function RecipeImporter() {
     
     try {
       const recipeWithUser = {
-        ...recipe,
+        title: recipe.title,
+        description: recipe.description || undefined,
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
+        prepTime: recipe.prepTime || null,
+        cookTime: recipe.cookTime || null,
+        servings: recipe.servings || null,
+        imageUrl: recipe.imageUrl || null,
+        sourceUrl: url,
         userId: user.uid,
-        sourceUrl: url
+        difficulty: recipe.difficulty || undefined,
+        nutrition: recipe.nutrition || undefined,
+        metadata: recipe.metadata || {
+          source: 'web-import',
+          generatedAt: new Date().toISOString(),
+          basedOn: [url],
+          filters: { ingredients: [] }
+        }
       };
       
       const recipeId = await saveRecipe(recipeWithUser);
@@ -81,6 +83,25 @@ export function RecipeImporter() {
           />
         </div>
         
+        <div className="flex items-center justify-between py-2">
+          <label htmlFor="scraping-toggle" className="text-sm font-medium text-gray-700">
+            Use AI-Powered Scraping
+          </label>
+          <button
+            type="button"
+            role="switch"
+            id="scraping-toggle"
+            aria-checked={useLLM}
+            onClick={() => setUseLLM(!useLLM)}
+            className={`${useLLM ? 'bg-blue-600' : 'bg-gray-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+          >
+            <span className="sr-only">Use AI-Powered Scraping</span>
+            <span
+              className={`${useLLM ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+            />
+          </button>
+        </div>
+        
         <button
           type="submit"
           disabled={loading}
@@ -89,7 +110,7 @@ export function RecipeImporter() {
           {loading ? (
             <span className="flex items-center justify-center">
               <Loader2 className="animate-spin mr-2" size={18} />
-              Importing...
+              {useLLM ? 'Processing with AI...' : 'Importing...'}
             </span>
           ) : (
             'Import Recipe'
@@ -139,13 +160,61 @@ export function RecipeImporter() {
                 <span className="font-medium">Servings:</span> {recipe.servings}
               </div>
             )}
+            {recipe.difficulty && (
+              <div>
+                <span className="font-medium">Difficulty:</span>{' '}
+                <span className={`capitalize ${
+                  recipe.difficulty === 'advanced' ? 'text-red-600' :
+                  recipe.difficulty === 'intermediate' ? 'text-yellow-600' :
+                  'text-green-600'
+                }`}>
+                  {recipe.difficulty}
+                </span>
+              </div>
+            )}
           </div>
+
+          {recipe.nutrition && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium mb-2">Nutritional Information</h4>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Calories:</span>{' '}
+                  {recipe.nutrition.calories}
+                </div>
+                <div>
+                  <span className="font-medium">Protein:</span>{' '}
+                  {recipe.nutrition.protein}g
+                </div>
+                <div>
+                  <span className="font-medium">Carbs:</span>{' '}
+                  {recipe.nutrition.carbs}g
+                </div>
+              </div>
+              {recipe.nutrition.disclaimer && (
+                <p className="text-xs text-gray-500 mt-2">
+                  {recipe.nutrition.disclaimer}
+                </p>
+              )}
+            </div>
+          )}
+
+          {recipe.description && (
+            <div className="mt-4">
+              <h4 className="font-medium mb-2">Description:</h4>
+              <p className="text-gray-700">{recipe.description}</p>
+            </div>
+          )}
 
           <div>
             <h4 className="font-medium mb-2">Ingredients:</h4>
             <ul className="list-disc pl-5 space-y-1">
               {recipe.ingredients.map((ingredient, index) => (
-                <li key={index}>{ingredient}</li>
+                <li key={index}>
+                  {typeof ingredient === 'string'
+                    ? ingredient
+                    : `${ingredient.amount} ${ingredient.item}`}
+                </li>
               ))}
             </ul>
           </div>

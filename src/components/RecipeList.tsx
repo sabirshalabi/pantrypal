@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Clock, Users, Plus, CookingPot, ImageIcon } from 'lucide-react';
+import { Clock, Users, Plus, CookingPot, ImageIcon, BookOpen, Bot } from 'lucide-react';
 import type { Recipe } from '../services/recipeService';
 import { getUserRecipes } from '../services/recipeService';
 import { useAuth } from '../hooks/useAuth';
@@ -60,43 +60,65 @@ export function RecipeList() {
     return (
       <Link
         to={`/recipes/${recipe.id}`}
-        className="block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
+        className="group block bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
       >
         <div className="relative h-48 rounded-t-lg overflow-hidden bg-gray-100">
           {recipe.imageUrl ? (
             <img
               src={recipe.imageUrl}
               alt={recipe.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-200"
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
               <ImageIcon className="w-12 h-12 text-gray-400" />
             </div>
           )}
+          {recipe.difficulty && (
+            <div className="absolute top-3 right-3 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-md text-xs font-medium text-gray-700 shadow-sm">
+              <div className="flex items-center gap-1">
+                <BookOpen className="h-3 w-3" />
+                <span className="capitalize">{recipe.difficulty}</span>
+              </div>
+            </div>
+          )}
         </div>
         <div className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">{recipe.title}</h3>
-          <div className="flex items-center gap-4 text-sm text-gray-500">
-            {recipe.prepTime && (
-              <div className="flex items-center">
-                <Clock className="h-4 w-4 mr-1" />
-                <span>Prep: {formatDuration(recipe.prepTime)}</span>
-              </div>
-            )}
-            {recipe.cookTime && (
-              <div className="flex items-center">
-                <Clock className="h-4 w-4 mr-1" />
-                <span>Cook: {formatDuration(recipe.cookTime)}</span>
-              </div>
-            )}
+          <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+            {recipe.title}
+          </h3>
+          
+          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
             {recipe.servings && (
-              <div className="flex items-center">
-                <Users className="h-4 w-4 mr-1" />
-                <span>{recipe.servings}</span>
+              <div className="flex items-center gap-1">
+                <Users className="h-4 w-4 text-gray-400" />
+                <span>{recipe.servings} servings</span>
+              </div>
+            )}
+            {(recipe.prepTime || recipe.cookTime) && (
+              <div className="flex items-center gap-3">
+                {recipe.prepTime && (
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-4 w-4 text-gray-400" />
+                    <span>Prep {formatDuration(recipe.prepTime)}</span>
+                  </div>
+                )}
+                {recipe.cookTime && (
+                  <div className="flex items-center gap-1">
+                    <CookingPot className="h-4 w-4 text-gray-400" />
+                    <span>Cook {formatDuration(recipe.cookTime)}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
+          
+          {recipe.metadata?.source === 'AI-generated' && (
+            <div className="mt-3 flex items-center gap-1 text-xs text-gray-500">
+              <Bot className="h-3 w-3" />
+              <span>AI Generated</span>
+            </div>
+          )}
         </div>
       </Link>
     );
