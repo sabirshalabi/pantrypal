@@ -8,8 +8,9 @@ import {
   set
 } from 'firebase/database';
 
+// Get base URL for API endpoints
 const API_BASE_URL = import.meta.env.PROD
-  ? 'https://pantrypal-sabirshalabi.vercel.app/api'
+  ? 'https://pantrypal-liard.vercel.app'
   : 'http://localhost:3001';
 
 export interface RecipeIngredient {
