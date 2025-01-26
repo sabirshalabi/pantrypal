@@ -5,6 +5,7 @@ import { ref, onValue, remove, update } from 'firebase/database';
 import { useAuth } from '../hooks/useAuth';
 import { Store } from '../types/Store';
 import { StoreModal } from '../components/StoreModal';
+import { Button } from '../components/ui/button';
 
 export function StoreManagement() {
   const [stores, setStores] = useState<Store[]>([]);
@@ -82,62 +83,80 @@ export function StoreManagement() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto px-4 py-8 space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Stores</h2>
-        <button
+        <h2 className="text-2xl font-bold text-zinc-900">Stores</h2>
+        <Button
           onClick={() => {
             setSelectedStore(undefined);
             setIsModalOpen(true);
           }}
-          className="bg-blue-600 text-white p-2 rounded-full shadow-sm hover:bg-blue-700 transition-colors"
+          variant="default"
+          size="icon"
+          className="rounded-full"
+          aria-label="Add new store"
         >
-          <Plus size={24} />
-        </button>
+          <Plus size={20} />
+        </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stores.map((store) => (
           <div
             key={store.id}
-            className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative"
+            className="flex w-full flex-col overflow-hidden border border-zinc-200 bg-white rounded-lg p-6 hover:bg-gray-50/50 transition-colors"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2">
-                  <StoreIcon className="text-blue-600" size={20} />
-                  <h3 className="text-lg font-semibold text-gray-900">{store.name}</h3>
+            <div className="flex justify-between items-start">
+              <div className="flex items-center space-x-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50">
+                  <StoreIcon className="h-5 w-5 text-blue-500" />
                 </div>
-                <p className="text-sm text-gray-600 mt-1">{getStoreTypeLabel(store.type)}</p>
+                <div>
+                  <h3 className="text-lg font-semibold text-zinc-900">{store.name}</h3>
+                  <p className="text-sm text-zinc-500">{getStoreTypeLabel(store.type)}</p>
+                </div>
               </div>
-              <button
-                onClick={() => toggleFavorite(store)}
-                className="text-yellow-500 hover:text-yellow-600"
-              >
-                {store.favorite ? <Star size={20} fill="currentColor" /> : <StarOff size={20} />}
-              </button>
+              <div className="flex items-center space-x-1">
+                <Button
+                  onClick={() => toggleFavorite(store)}
+                  variant="ghost"
+                  size="icon"
+                  className="text-yellow-500"
+                >
+                  {store.favorite ? <Star className="h-4 w-4" /> : <StarOff className="h-4 w-4" />}
+                </Button>
+                <Button
+                  onClick={() => handleEdit(store)}
+                  variant="ghost"
+                  size="icon"
+                  className="text-zinc-500"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  onClick={() => handleDelete(store.id)}
+                  variant="ghost"
+                  size="icon"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            
-            <div className="flex justify-end space-x-2 mt-4">
-              <button
-                onClick={() => handleEdit(store)}
-                className="text-blue-600 hover:text-blue-700"
-              >
-                <Edit2 size={20} />
-              </button>
-              <button
-                onClick={() => handleDelete(store.id)}
-                className="text-red-500 hover:text-red-600"
-              >
-                <Trash2 size={20} />
-              </button>
-            </div>
+            {store.address && (
+              <p className="mt-2 text-sm text-zinc-500">{store.address}</p>
+            )}
           </div>
         ))}
-
         {stores.length === 0 && (
-          <div className="col-span-full text-center py-12">
-            <p className="text-gray-500">No stores added yet. Add your first store to get started!</p>
+          <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+            <div className="rounded-full bg-blue-50 p-3 mb-4">
+              <StoreIcon className="h-6 w-6 text-blue-500" />
+            </div>
+            <h3 className="text-lg font-medium text-zinc-900 mb-2">No stores found</h3>
+            <p className="text-zinc-500 mb-6">
+              Add your first store to get started!
+            </p>
           </div>
         )}
       </div>

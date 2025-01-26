@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Calendar } from 'lucide-react';
+import { Plus, Pencil, Trash2, Calendar, Minus, ShoppingBasket } from 'lucide-react';
 import { NewListModal } from '../components/NewListModal';
 import { ref, onValue, query, orderByChild, remove, update, push, get } from 'firebase/database';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingList } from '../types/ShoppingList';
 import { useFirebase } from '../context/FirebaseContext';
+import { Button } from '../components/ui/button';
 
 import {
   MorphingDialog,
@@ -351,19 +352,21 @@ export function ShoppingLists() {
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <button
+                  <Button
                     onClick={() => handleUpdateQuantity(list.id, item.id, item.quantity - 1)}
-                    className="p-1 hover:bg-gray-100 rounded"
+                    variant="ghost"
+                    size="icon"
                   >
-                    -
-                  </button>
+                    <Minus className="h-4 w-4" />
+                  </Button>
                   <span className="w-8 text-center">{item.quantity}</span>
-                  <button
+                  <Button
                     onClick={() => handleUpdateQuantity(list.id, item.id, item.quantity + 1)}
-                    className="p-1 hover:bg-gray-100 rounded"
+                    variant="ghost"
+                    size="icon"
                   >
-                    +
-                  </button>
+                    <Plus className="h-4 w-4" />
+                  </Button>
                   <select
                     value={item.storeId || ''}
                     onChange={(e) => handleUpdateStore(list.id, item.id, e.target.value)}
@@ -376,12 +379,14 @@ export function ShoppingLists() {
                       </option>
                     ))}
                   </select>
-                  <button
+                  <Button
                     onClick={() => handleDeleteItem(list.id, item.id)}
-                    className="p-1 text-red-500 hover:bg-red-50 rounded"
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50"
                   >
                     <Trash2 className="h-4 w-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -395,13 +400,15 @@ export function ShoppingLists() {
     <div className="container mx-auto px-4 py-8 space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-zinc-900">Shopping Lists</h2>
-        <button 
+        <Button 
           onClick={() => setIsModalOpen(true)}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm transition-colors hover:bg-blue-700"
+          variant="default"
+          size="icon"
+          className="rounded-full"
           aria-label="Create new list"
         >
           <Plus size={20} />
-        </button>
+        </Button>
       </div>
       
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -421,43 +428,56 @@ export function ShoppingLists() {
             >
               <MorphingDialogTrigger
                 style={{ borderRadius: '12px' }}
-                className="flex w-full flex-col overflow-hidden border border-zinc-200 bg-white hover:bg-gray-50"
+                className="flex w-full flex-col overflow-hidden border border-zinc-200 bg-white hover:bg-gray-50/50 transition-colors"
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-2">
-                    <MorphingDialogTitle className="text-lg font-semibold text-zinc-900">
-                      {list.name}
-                    </MorphingDialogTitle>
-                    <div className="flex items-center space-x-2">
-                      <button
+                    <div className="flex items-center space-x-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50">
+                        <ShoppingBasket className="h-5 w-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <MorphingDialogTitle className="text-lg font-semibold text-zinc-900">
+                          {list.name}
+                        </MorphingDialogTitle>
+                        <MorphingDialogSubtitle className="text-sm text-zinc-500">
+                          {itemCount} items • {progress}% complete
+                        </MorphingDialogSubtitle>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleImportMealPlanIngredients(list.id);
                         }}
-                        className="flex items-center justify-center rounded-lg border border-zinc-200 p-2 text-zinc-600 transition-colors hover:bg-gray-50"
+                        variant="ghost"
+                        size="icon"
+                        className="text-zinc-600"
                         aria-label="Import meal plan ingredients"
                       >
                         <Calendar size={16} />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={(e) => startEditingListName(list, e)}
-                        className="flex items-center justify-center rounded-lg border border-zinc-200 p-2 text-zinc-600 transition-colors hover:bg-gray-50"
+                        variant="ghost"
+                        size="icon"
+                        className="text-zinc-600"
                         aria-label="Edit list name"
                       >
                         <Pencil size={16} />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={(e) => handleDeleteList(list.id, e)}
-                        className="flex items-center justify-center rounded-lg border border-red-200 p-2 text-red-600 transition-colors hover:bg-red-50"
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
                         aria-label="Delete list"
                       >
                         <Trash2 size={16} />
-                      </button>
+                      </Button>
                     </div>
                   </div>
-                  <MorphingDialogSubtitle className="mt-1 text-sm text-zinc-600">
-                    {itemCount} items • {progress}% complete
-                  </MorphingDialogSubtitle>
                   <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-gray-100">
                     <div
                       className="h-full bg-blue-600 transition-all duration-500"
@@ -490,34 +510,38 @@ export function ShoppingLists() {
                             className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-zinc-500 focus:outline-none focus:ring-zinc-500"
                             autoFocus
                           />
-                          <button
+                          <Button
                             onClick={() => handleUpdateListName(list.id)}
-                            className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                            variant="default"
+                            size="sm"
                           >
                             Save
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             onClick={() => {
                               setEditingListId(null);
                               setEditingListName('');
                             }}
-                            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-gray-50"
+                            variant="ghost"
+                            size="sm"
                           >
                             Cancel
-                          </button>
+                          </Button>
                         </div>
                       ) : (
                         <div className="flex items-center space-x-2">
                           <MorphingDialogTitle className="text-2xl font-semibold text-zinc-900">
                             {list.name}
                           </MorphingDialogTitle>
-                          <button
+                          <Button
                             onClick={(e) => startEditingListName(list, e)}
-                            className="flex items-center justify-center rounded-lg border border-zinc-200 p-2 text-zinc-600 transition-colors hover:bg-gray-50"
+                            variant="outline"
+                            size="icon"
+                            className="text-zinc-600"
                             aria-label="Edit list name"
                           >
                             <Pencil size={16} />
-                          </button>
+                          </Button>
                         </div>
                       )}
                       <MorphingDialogSubtitle className="mt-1 text-zinc-600">
@@ -553,12 +577,13 @@ export function ShoppingLists() {
                           </option>
                         ))}
                       </select>
-                      <button
+                      <Button
                         type="submit"
-                        className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                        variant="default"
+                        size="sm"
                       >
                         Add Item
-                      </button>
+                      </Button>
                     </form>
 
                     <div className="space-y-4">
@@ -575,6 +600,17 @@ export function ShoppingLists() {
             </MorphingDialog>
           );
         })}
+        {lists.length === 0 && (
+          <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+            <div className="rounded-full bg-blue-50 p-3 mb-4">
+              <ShoppingBasket className="h-6 w-6 text-blue-500" />
+            </div>
+            <h3 className="text-lg font-medium text-zinc-900 mb-2">No shopping lists found</h3>
+            <p className="text-zinc-500 mb-6">
+              Create your first shopping list to get started!
+            </p>
+          </div>
+        )}
       </div>
       
       <NewListModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />

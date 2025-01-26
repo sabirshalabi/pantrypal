@@ -11,10 +11,13 @@ import { ListDetail } from './pages/ListDetail';
 import { Recipes } from './pages/Recipes';
 import { ImportList } from './pages/ImportList';
 import { checkPWAStatus } from './utils/pwaStatus';
+import paperTexture from './assets/paper_texture.jpeg';
 
 function App() {
   useEffect(() => {
     checkPWAStatus();
+    // Set the background image as a CSS variable
+    document.documentElement.style.setProperty('--paper-texture', `url(${paperTexture})`);
   }, []);
 
   return (

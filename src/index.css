@@ -15,6 +15,18 @@ body {
   overflow-x: hidden;
 }
 
+body {
+  background-image: url('./assets/paper_texture.jpeg');
+  background-repeat: repeat;
+  background-attachment: fixed;
+  background-size: auto;
+}
+
+#root {
+  min-height: 100vh;
+  background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white overlay */
+}
+
 /* Mobile viewport bug fix */
 @supports (-webkit-touch-callout: none) {
   body {

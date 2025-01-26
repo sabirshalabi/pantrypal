@@ -7,6 +7,7 @@ import { Meal, MealPlan } from '../types/Meal';
 import { Store } from '../types/Store';
 import { MealModal } from '../components/MealModal';
 import { MealPlanModal } from '../components/MealPlanModal';
+import { Button } from '../components/ui/button';
 import { format, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 
 export function MealPlanning() {
@@ -122,33 +123,35 @@ export function MealPlanning() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-6">
           <div className="inline-flex items-center bg-gray-50 rounded-lg p-1">
-            <button
+            <Button
               onClick={handlePreviousWeek}
-              className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all"
+              variant="ghost"
+              size="icon"
               aria-label="Previous week"
             >
               <ChevronLeft size={18} />
-            </button>
+            </Button>
             <div className="px-3 font-medium">
               {format(startOfWeek(currentWeek), 'MMM d')}
             </div>
-            <button
+            <Button
               onClick={handleNextWeek}
-              className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all"
+              variant="ghost"
+              size="icon"
               aria-label="Next week"
             >
               <ChevronRight size={18} />
-            </button>
+            </Button>
           </div>
-          <button
+          <Button
             onClick={() => {
               setSelectedPlan(currentPlan);
               setIsPlanModalOpen(true);
             }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+            variant="default"
           >
             {currentPlan ? 'Update' : 'Plan This Week'}
-          </button>
+          </Button>
         </div>
 
         {currentPlan ? (
@@ -210,16 +213,17 @@ export function MealPlanning() {
       <div className="px-4">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold">Meals Library</h2>
-          <button
+          <Button
             onClick={() => {
               setSelectedMeal(undefined);
               setIsMealModalOpen(true);
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+            variant="default"
+            size="icon"
             aria-label="Add new meal"
           >
             <Plus size={24} />
-          </button>
+          </Button>
         </div>
 
         <div className="space-y-4 mb-24">
@@ -236,23 +240,25 @@ export function MealPlanning() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
                     onClick={() => {
                       setSelectedMeal(meal);
                       setIsMealModalOpen(true);
                     }}
-                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    variant="ghost"
+                    size="icon"
                     aria-label="Edit meal"
                   >
                     <Edit2 size={20} />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={() => handleDeleteMeal(meal.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                    variant="ghost"
+                    size="icon"
                     aria-label="Delete meal"
                   >
                     <Trash2 size={20} />
-                  </button>
+                  </Button>
                 </div>
               </div>
               {meal.ingredients?.length > 0 && (

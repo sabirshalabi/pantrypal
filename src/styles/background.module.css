@@ -1,0 +1,8 @@
+@import '../assets/paper_texture.jpeg';
+
+.background {
+  background-image: url('../assets/paper_texture.jpeg');
+  background-repeat: repeat;
+  background-attachment: fixed;
+  background-size: auto;
+}

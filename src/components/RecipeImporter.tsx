@@ -2,10 +2,14 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, ChefHat, Clock, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { saveRecipe, scrapeRecipe, generateRecipe, type Recipe, type RecipeFilters } from '../services/recipeService';
 import { generateRecipeImage } from '../services/imageService';
 import { useAuth } from '../hooks/useAuth';
 import { create } from 'zustand';
+import { Switch } from './ui/switch';
 
 interface Ingredient {
   id: string;
@@ -19,23 +23,12 @@ interface GeneratedRecipe extends Recipe {
 interface RecipeModalStore {
   ingredients: Ingredient[];
   mealType: string | null;
-  dietary: string[];
   difficulty: 'beginner' | 'intermediate' | 'advanced' | null;
   addIngredient: (ingredient: Ingredient) => void;
   removeIngredient: (id: string) => void;
   setMealType: (type: string) => void;
-  setDietary: (restrictions: string[]) => void;
   setDifficulty: (level: 'beginner' | 'intermediate' | 'advanced' | null) => void;
 }
-
-const dietaryOptions = [
-  'Vegetarian',
-  'Vegan',
-  'Gluten-Free',
-  'Dairy-Free',
-  'Low-Carb',
-  'Keto'
-];
 
 const difficultyLevels: Array<'beginner' | 'intermediate' | 'advanced'> = [
   'beginner',
@@ -55,7 +48,6 @@ const mealTypes = [
 const useRecipeStore = create<RecipeModalStore>((set) => ({
   ingredients: [],
   mealType: null,
-  dietary: [],
   difficulty: null,
   addIngredient: (ingredient) => 
     set((state) => ({ ingredients: [...state.ingredients, ingredient] })),
@@ -64,7 +56,6 @@ const useRecipeStore = create<RecipeModalStore>((set) => ({
       ingredients: state.ingredients.filter((ing) => ing.id !== id) 
     })),
   setMealType: (type) => set({ mealType: type }),
-  setDietary: (restrictions) => set({ dietary: restrictions }),
   setDifficulty: (level) => set({ difficulty: level })
 }));
 
@@ -100,7 +91,6 @@ export function RecipeImporter() {
     try {
       const filters: RecipeFilters = {
         ingredients: store.ingredients.map(i => i.name),
-        dietary: store.dietary,
         difficulty: store.difficulty || undefined
       };
 
@@ -228,24 +218,18 @@ try {
       {!showGenerator ? (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="url" className="block text-sm font-medium mb-1">
-              Recipe URL
-            </label>
+            <Label htmlFor="url">Recipe URL</Label>
             <div className="flex gap-2">
-              <input
+              <Input
                 type="url"
                 id="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="Paste a recipe URL (e.g., foodnetwork.com/recipes/...)"
-                className="flex-1 px-3 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1"
                 required
               />
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 shadow-sm"
-              >
+              <Button type="submit" disabled={loading} variant="default">
                 {loading ? (
                   <span className="flex items-center">
                     <Loader2 className="animate-spin mr-2" size={18} />
@@ -254,25 +238,17 @@ try {
                 ) : (
                   'Import'
                 )}
-              </button>
+              </Button>
             </div>
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                role="switch"
-                id="scraping-toggle"
-                aria-checked={useLLM}
-                onClick={() => setUseLLM(!useLLM)}
-                className={`${useLLM ? 'bg-blue-600' : 'bg-gray-200'} relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+            <div className="mt-3 flex items-center">
+              <Switch 
+                isSelected={useLLM}
+                onChange={setUseLLM}
+                className="text-sm text-gray-600"
               >
-                <span className="sr-only">Use AI-Powered Scraping</span>
-                <span
-                  className={`${useLLM ? 'translate-x-5' : 'translate-x-1'} inline-block h-3 w-3 transform rounded-full bg-white transition-transform`}
-                />
-              </button>
-              <span className="text-xs text-gray-500">
-                Enable AI-powered recipe extraction (Recommended for better accuracy)
-              </span>
+                Use AI?{' '}
+                <span className="ml-1 text-gray-400">(recommended)</span>
+              </Switch>
             </div>
           </div>
         </form>
@@ -314,42 +290,15 @@ try {
             </div>
           </div>
 
-          {/* Dietary Restrictions */}
-          <div>
-            <h3 className="font-medium mb-2">Dietary Restrictions</h3>
-            <div className="flex flex-wrap gap-2">
-              {dietaryOptions.map((option) => (
-                <button
-                  key={option}
-                  onClick={() => {
-                    const isSelected = store.dietary.includes(option);
-                    store.setDietary(
-                      isSelected
-                        ? store.dietary.filter(d => d !== option)
-                        : [...store.dietary, option]
-                    );
-                  }}
-                  className={`px-3 py-1 rounded-full border transition-colors ${
-                    store.dietary.includes(option)
-                      ? 'bg-blue-500 text-white border-blue-500'
-                      : 'border-gray-300 hover:border-blue-500'
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Difficulty Selection */}
+          {/* Difficulty Level */}
           <div>
             <h3 className="font-medium mb-2">Difficulty Level</h3>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2">
               {difficultyLevels.map((level) => (
                 <button
                   key={level}
                   onClick={() => store.setDifficulty(level)}
-                  className={`px-4 py-2 rounded-md border transition-colors ${
+                  className={`px-4 py-2 rounded-lg border ${
                     store.difficulty === level
                       ? 'bg-blue-500 text-white border-blue-500'
                       : 'border-gray-300 hover:border-blue-500'
@@ -362,15 +311,15 @@ try {
           </div>
 
           {/* Meal Type Selection */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {mealTypes.map((type) => (
               <button
                 key={type}
                 onClick={() => store.setMealType(type)}
-                className={`p-4 rounded-lg border ${
+                className={`p-4 text-center rounded-lg border ${
                   store.mealType === type
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-blue-200'
+                    ? 'bg-blue-500 text-white border-blue-500'
+                    : 'border-gray-300 hover:border-blue-500'
                 }`}
               >
                 {type}

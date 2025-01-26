@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Clock, Users, Plus, CookingPot, ImageIcon, BookOpen } from 'lucide-react';
+import { Button } from './ui/button';
 import type { Recipe } from '../services/recipeService';
 import { getUserRecipes } from '../services/recipeService';
 import { useAuth } from '../hooks/useAuth';
@@ -48,12 +49,11 @@ export function RecipeList() {
       <p className="text-gray-500 mb-6">
         Start building your recipe collection!
       </p>
-      <Link
-        to="/recipes/import"
-        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-      >
-        <Plus className="h-5 w-5 mr-2" />
-        Import Your First Recipe
+      <Link to="/recipes/import">
+        <Button variant="default">
+          <Plus className="h-5 w-5 mr-2" />
+          Import Your First Recipe
+        </Button>
       </Link>
     </div>
   );
@@ -125,12 +125,11 @@ export function RecipeList() {
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">Your Recipes</h2>
           <div className="flex gap-4">
-            <Link
-              to="/recipes/import"
-              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <span className="sr-only">Add Recipe</span>
-              <Plus className="h-5 w-5" />
+            <Link to="/recipes/import">
+              <Button size="icon" variant="default">
+                <span className="sr-only">Add Recipe</span>
+                <Plus className="h-5 w-5" />
+              </Button>
             </Link>
           </div>
         </div>
