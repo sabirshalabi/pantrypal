@@ -491,7 +491,7 @@ ${cleanHtml}`;
       });
 
       const response = await result.response;
-      const content = response.text();
+      const content = await response.text();
       
       // Parse the JSON response
       recipeData = JSON.parse(content);
@@ -545,45 +545,43 @@ ${cleanHtml}`;
   }
 });
 
-app.listen(process.env.PORT || 3001, () => console.log(`Server listening on port ${process.env.PORT || 3001}`));
-
-// Recipe generation utilities
-const RECIPE_DIFFICULTY_LEVELS = ['beginner', 'intermediate', 'advanced'];
-
-const generateNutritionalEstimate = async (ingredients) => {
-  // Basic estimation based on ingredient count and types
-  const baseCalories = ingredients.length * 75;
-  return {
-    calories: baseCalories,
-    protein: Math.round(ingredients.length * 4.5),
-    carbs: Math.round(ingredients.length * 6.2),
-    disclaimer: 'Nutritional values are estimated and should be used as a general guide only.'
-  };
-};
-
-// New endpoint for AI-generated recipe fusion
 app.post('/api/generate-recipe', async (req, res) => {
   const { filters } = req.body;
 
+  console.log('Received generate-recipe request with filters:', filters);
+
   // Validate inputs
   if (!filters?.ingredients?.length) {
+    console.error('Missing ingredients in request');
     return res.status(400).json({ error: 'At least one ingredient required' });
   }
 
   // Validate API keys
-  if (!process.env.MEALDB_API_KEY || !process.env.GEMINI_API_KEY) {
-    return res.status(500).json({ error: 'Missing required API configuration' });
+  if (!process.env.MEALDB_API_KEY) {
+    console.error('Missing MEALDB_API_KEY');
+    return res.status(500).json({ error: 'Missing required API configuration: MEALDB_API_KEY' });
+  }
+  
+  if (!process.env.GEMINI_API_KEY) {
+    console.error('Missing GEMINI_API_KEY');
+    return res.status(500).json({ error: 'Missing required API configuration: GEMINI_API_KEY' });
   }
 
   try {
     // Step 1: Fetch recipes from MealDB for each ingredient
     const fetchRecipesByIngredient = async (ingredient) => {
       try {
+        console.log(`Fetching recipes for ingredient: ${ingredient}`);
         const response = await fetch(
           `https://www.themealdb.com/api/json/v2/${process.env.MEALDB_API_KEY}/filter.php?i=${encodeURIComponent(ingredient)}`
         );
-        if (!response.ok) throw new Error(`MealDB API error for ingredient: ${ingredient}`);
-        return response.json();
+        if (!response.ok) {
+          console.error(`MealDB API error for ${ingredient}:`, await response.text());
+          throw new Error(`MealDB API error for ingredient: ${ingredient}`);
+        }
+        const data = await response.json();
+        console.log(`Found ${data.meals?.length || 0} recipes for ${ingredient}`);
+        return data;
       } catch (error) {
         console.error(`Failed to fetch recipes for ${ingredient}:`, error);
         return { meals: [] };
@@ -615,6 +613,7 @@ app.post('/api/generate-recipe', async (req, res) => {
     }
 
     // Step 2: Initialize Gemini with schema
+    console.log('Initializing Gemini AI');
     const { GoogleGenerativeAI, SchemaType } = await import("@google/generative-ai");
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     
@@ -654,66 +653,48 @@ app.post('/api/generate-recipe', async (req, res) => {
             description: "Step-by-step cooking instructions",
           },
         },
-        prepTime: {
-          type: SchemaType.STRING,
-          description: "Preparation time in minutes",
-        },
-        cookTime: {
-          type: SchemaType.STRING,
-          description: "Cooking time in minutes",
-        },
-        difficulty: {
-          type: SchemaType.STRING,
-          enum: RECIPE_DIFFICULTY_LEVELS,
-          description: "Recipe difficulty level",
-        },
-        servings: {
-          type: SchemaType.NUMBER,
-          description: "Number of servings",
-        },
       },
-      required: ["title", "ingredients", "instructions", "servings"],
+      required: ["title", "description", "ingredients", "instructions"],
     };
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-        responseSchema: recipeSchema,
-      },
-    });
+    // Create a model instance with the schema
+    console.log('Creating Gemini model with schema');
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    // Step 3: Generate combined recipe
-    const prompt = `Create an innovative recipe based on these requirements:
+    // Generate the prompt
+    const prompt = `Create a unique recipe that combines elements from these recipes: ${uniqueRecipes.slice(0, 3).map(r => r.strMeal).join(', ')}. 
+    Use these ingredients: ${filters.ingredients.join(', ')}
+    ${filters.difficulty ? `Difficulty level: ${filters.difficulty}` : ''}
+    
+    Return a JSON object with:
+    - A creative title
+    - A brief description
+    - A detailed list of ingredients with amounts
+    - Clear step-by-step instructions
+    
+    Make it unique and interesting!`;
 
-Input:
-- User's ingredients: ${JSON.stringify(filters.ingredients)}
-- Additional filters: ${JSON.stringify(filters.dietary || [])}
-- Related recipes found: ${JSON.stringify(uniqueRecipes.slice(0, 3).map(r => r.strMeal))}
-
-Requirements:
-1. Create a unique recipe that uses the user's ingredients creatively
-2. Consider any dietary restrictions provided
-3. Draw inspiration from the related recipes found
-4. Provide clear, step-by-step instructions
-5. Include precise measurements`;
-
+    console.log('Sending prompt to Gemini:', prompt);
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
     });
 
     const response = await result.response;
-    const generatedRecipe = JSON.parse(response.text());
-
-    // Log the response for debugging
-    console.debug('Gemini response:', response.text());
+    console.log('Received response from Gemini');
+    
+    let generatedRecipe;
+    try {
+      generatedRecipe = JSON.parse(response.text());
+      console.log('Successfully parsed Gemini response');
+    } catch (error) {
+      console.error('Failed to parse Gemini response:', error);
+      console.error('Raw response:', response.text());
+      throw new Error('Failed to parse generated recipe data');
+    }
 
     // Step 4: Validate and enhance recipe
     if (!generatedRecipe?.ingredients?.length || !generatedRecipe?.instructions?.length) {
+      console.error('Generated recipe is missing required components:', generatedRecipe);
       throw new Error('Generated recipe is missing required components');
     }
 
@@ -729,15 +710,33 @@ Requirements:
       nutrition: await generateNutritionalEstimate(generatedRecipe.ingredients)
     };
 
+    console.log('Sending final recipe response');
     return res.json(finalRecipe);
 
   } catch (error) {
     console.error('Recipe generation error:', error);
     return res.status(500).json({
       error: 'Failed to generate recipe',
-      details: error.message
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
+
+app.listen(process.env.PORT || 3001, () => console.log(`Server listening on port ${process.env.PORT || 3001}`));
+
+// Recipe generation utilities
+const RECIPE_DIFFICULTY_LEVELS = ['beginner', 'intermediate', 'advanced'];
+
+const generateNutritionalEstimate = async (ingredients) => {
+  // Basic estimation based on ingredient count and types
+  const baseCalories = ingredients.length * 75;
+  return {
+    calories: baseCalories,
+    protein: Math.round(ingredients.length * 4.5),
+    carbs: Math.round(ingredients.length * 6.2),
+    disclaimer: 'Nutritional values are estimated and should be used as a general guide only.'
+  };
+};
 
 export default app;
