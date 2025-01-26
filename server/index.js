@@ -221,6 +221,44 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Spoonacular API endpoint
+app.post('/api/spoonacular/search', async (req, res) => {
+  const { ingredients, number = 10, ranking = 2, ignorePantry = false } = req.body;
+
+  if (!ingredients) {
+    return res.status(400).json({ error: 'Ingredients are required' });
+  }
+
+  if (!process.env.SPOONACULAR_API_KEY) {
+    return res.status(500).json({ error: 'Spoonacular API key not configured' });
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.spoonacular.com/recipes/findByIngredients?apiKey=${process.env.SPOONACULAR_API_KEY}&ingredients=${ingredients}&number=${number}&ranking=${ranking}&ignorePantry=${ignorePantry}`,
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Spoonacular API error');
+    }
+
+    const data = await response.json();
+    return res.json(data);
+  } catch (error) {
+    console.error('Spoonacular search error:', error);
+    return res.status(500).json({
+      error: 'Failed to search recipes',
+      details: error.message
+    });
+  }
+});
+
 app.post('/api/scrape-recipe', async (req, res) => {
   const { url } = req.body;
 

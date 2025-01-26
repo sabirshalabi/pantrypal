@@ -238,25 +238,92 @@ export function RecipeDetail() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Ingredients</h2>
-          {recipe.ingredients && recipe.ingredients.length > 0 ? (
-            <ul className="space-y-2">
-              {recipe.ingredients.map((ingredient, index) => (
-                <li key={index} className="flex items-start">
-                  <span className="h-2 w-2 rounded-full bg-blue-500 mt-2 mr-3" />
-                  <span className="text-gray-700">
-                    {typeof ingredient === 'string' 
-                      ? ingredient 
-                      : `${ingredient.amount || ''} ${ingredient.item}`.trim()}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500">No ingredients listed</p>
-          )}
-        </div>
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Ingredients</h2>
+            {recipe.metadata?.source === 'spoonacular' && recipe.spoonacular ? (
+              <div className="space-y-6">
+                {recipe.spoonacular.usedIngredients.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Available Ingredients</h3>
+                    <ul className="space-y-2">
+                      {recipe.spoonacular.usedIngredients.map((ingredient, index) => (
+                        <li key={`used-${index}`} className="flex items-start">
+                          <span className="h-2 w-2 rounded-full bg-green-500 mt-2 mr-3" />
+                          <div>
+                            <span className="text-gray-700">
+                              {ingredient.amount} {ingredient.unit} {ingredient.name}
+                            </span>
+                            <span className="block text-xs text-gray-500">
+                              Found in: {ingredient.aisle}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {recipe.spoonacular.missedIngredients.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Additional Ingredients Needed</h3>
+                    <ul className="space-y-2">
+                      {recipe.spoonacular.missedIngredients.map((ingredient, index) => (
+                        <li key={`missed-${index}`} className="flex items-start">
+                          <span className="h-2 w-2 rounded-full bg-red-500 mt-2 mr-3" />
+                          <div>
+                            <span className="text-gray-700">
+                              {ingredient.amount} {ingredient.unit} {ingredient.name}
+                            </span>
+                            <span className="block text-xs text-gray-500">
+                              Found in: {ingredient.aisle}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {recipe.spoonacular.unusedIngredients.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Unused Ingredients</h3>
+                    <ul className="space-y-2">
+                      {recipe.spoonacular.unusedIngredients.map((ingredient, index) => (
+                        <li key={`unused-${index}`} className="flex items-start">
+                          <span className="h-2 w-2 rounded-full bg-gray-400 mt-2 mr-3" />
+                          <div>
+                            <span className="text-gray-700">
+                              {ingredient.amount} {ingredient.unit} {ingredient.name}
+                            </span>
+                            <span className="block text-xs text-gray-500">
+                              Found in: {ingredient.aisle}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : (
+              recipe.ingredients && recipe.ingredients.length > 0 ? (
+                <ul className="space-y-2">
+                  {recipe.ingredients.map((ingredient, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="h-2 w-2 rounded-full bg-blue-500 mt-2 mr-3" />
+                      <span className="text-gray-700">
+                        {typeof ingredient === 'string' 
+                          ? ingredient 
+                          : `${ingredient.amount || ''} ${ingredient.item}`.trim()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500">No ingredients listed</p>
+              )
+            )}
+          </div>
 
         <div>
           <h2 className="text-xl font-semibold mb-4">Instructions</h2>

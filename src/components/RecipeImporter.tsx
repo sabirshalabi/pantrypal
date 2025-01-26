@@ -1,11 +1,72 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChefHat, Clock, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { saveRecipe, scrapeRecipe } from '../services/recipeService';
+import { saveRecipe, scrapeRecipe, generateRecipe, type Recipe, type RecipeFilters } from '../services/recipeService';
+import { generateRecipeImage } from '../services/imageService';
 import { useAuth } from '../hooks/useAuth';
-import type { Recipe } from '../services/recipeService';
-import { RecipeModal } from './RecipeModal';
+import { create } from 'zustand';
+
+interface Ingredient {
+  id: string;
+  name: string;
+}
+
+interface GeneratedRecipe extends Recipe {
+  tempId: string;
+}
+
+interface RecipeModalStore {
+  ingredients: Ingredient[];
+  mealType: string | null;
+  dietary: string[];
+  difficulty: 'beginner' | 'intermediate' | 'advanced' | null;
+  addIngredient: (ingredient: Ingredient) => void;
+  removeIngredient: (id: string) => void;
+  setMealType: (type: string) => void;
+  setDietary: (restrictions: string[]) => void;
+  setDifficulty: (level: 'beginner' | 'intermediate' | 'advanced' | null) => void;
+}
+
+const dietaryOptions = [
+  'Vegetarian',
+  'Vegan',
+  'Gluten-Free',
+  'Dairy-Free',
+  'Low-Carb',
+  'Keto'
+];
+
+const difficultyLevels: Array<'beginner' | 'intermediate' | 'advanced'> = [
+  'beginner',
+  'intermediate',
+  'advanced'
+];
+
+const mealTypes = [
+  'Breakfast',
+  'Lunch',
+  'Dinner',
+  'Dessert',
+  'Snacks',
+  'Beverages',
+];
+
+const useRecipeStore = create<RecipeModalStore>((set) => ({
+  ingredients: [],
+  mealType: null,
+  dietary: [],
+  difficulty: null,
+  addIngredient: (ingredient) => 
+    set((state) => ({ ingredients: [...state.ingredients, ingredient] })),
+  removeIngredient: (id) =>
+    set((state) => ({ 
+      ingredients: state.ingredients.filter((ing) => ing.id !== id) 
+    })),
+  setMealType: (type) => set({ mealType: type }),
+  setDietary: (restrictions) => set({ dietary: restrictions }),
+  setDifficulty: (level) => set({ difficulty: level })
+}));
 
 export function RecipeImporter() {
   const [url, setUrl] = useState('');
@@ -13,8 +74,88 @@ export function RecipeImporter() {
   const [error, setError] = useState<string | null>(null);
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [useLLM, setUseLLM] = useState(true);
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [generatedRecipes, setGeneratedRecipes] = useState<GeneratedRecipe[]>([]);
+  const [saving, setSaving] = useState<{[key: string]: boolean}>({});
+  const store = useRecipeStore();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const handleAddIngredient = () => {
+    if (inputValue.trim()) {
+      store.addIngredient({
+        id: Math.random().toString(36).substr(2, 9),
+        name: inputValue.trim()
+      });
+      setInputValue('');
+    }
+  };
+
+  const handleGenerateRecipe = async () => {
+    if (store.ingredients.length === 0) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const filters: RecipeFilters = {
+        ingredients: store.ingredients.map(i => i.name),
+        dietary: store.dietary,
+        difficulty: store.difficulty || undefined
+      };
+
+      const generatedRecipe = await generateRecipe(filters);
+      
+      // Add temporary ID for UI handling
+      const recipeWithId = {
+        ...generatedRecipe,
+        tempId: Math.random().toString(36).substr(2, 9)
+      };
+
+      setGeneratedRecipes([recipeWithId]);
+    } catch (err) {
+      console.error('Error generating recipes:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate recipes. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveRecipe = async (recipe: GeneratedRecipe) => {
+    if (!user) return;
+
+    setSaving(prev => ({ ...prev, [recipe.tempId]: true }));
+    try {
+      let imageUrl = undefined;
+      
+      try {
+        imageUrl = await generateRecipeImage({
+          title: recipe.title,
+          ingredients: Array.isArray(recipe.ingredients) 
+            ? recipe.ingredients.map(ing => 
+                typeof ing === 'string' ? ing : `${ing.amount} ${ing.item}`
+              )
+            : [],
+          mealType: store.mealType || 'main dish'
+        });
+      } catch (error) {
+        console.error('Failed to generate image:', error);
+      }
+
+      const recipeToSave = {
+        ...recipe,
+        userId: user.uid,
+        imageUrl
+      };
+      
+      const recipeId = await saveRecipe(recipeToSave);
+      navigate(`/recipes/${recipeId}`);
+    } catch (error) {
+      console.error('Failed to save recipe:', error);
+    } finally {
+      setSaving(prev => ({ ...prev, [recipe.tempId]: false }));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,8 +183,8 @@ try {
         instructions: recipe.instructions,
         prepTime: recipe.prepTime || null,
         cookTime: recipe.cookTime || null,
-        servings: recipe.servings || null,
-        imageUrl: recipe.imageUrl || null,
+        servings: recipe.servings || undefined,
+        imageUrl: recipe.imageUrl || undefined,
         sourceUrl: url,
         userId: user.uid,
         difficulty: recipe.difficulty || undefined,
@@ -65,58 +206,327 @@ try {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-4">Add Recipe</h2>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="url" className="block text-sm font-medium mb-1">
-            Recipe URL
-          </label>
-          <input
-            type="url"
-            id="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://example.com/recipe"
-            className="w-full px-3 py-2 border rounded-md"
-            required
-          />
-        </div>
-        
-        <div className="flex items-center justify-between py-2">
-          <label htmlFor="scraping-toggle" className="text-sm font-medium text-gray-700">
-            Use AI-Powered Scraping
-          </label>
+      <div className="flex gap-4 mb-6">
+        <button
+          className={`flex-1 px-4 py-2 text-center rounded-t-lg border-b-2 ${
+            !showGenerator ? 'border-blue-600 text-blue-600' : 'border-transparent hover:border-gray-300'
+          }`}
+          onClick={() => setShowGenerator(false)}
+        >
+          Import from URL
+        </button>
+        <button
+          className={`flex-1 px-4 py-2 text-center rounded-t-lg border-b-2 ${
+            showGenerator ? 'border-blue-600 text-blue-600' : 'border-transparent hover:border-gray-300'
+          }`}
+          onClick={() => setShowGenerator(true)}
+        >
+          Generate Recipe
+        </button>
+      </div>
+
+      {!showGenerator ? (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="url" className="block text-sm font-medium mb-1">
+              Recipe URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                id="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="Paste a recipe URL (e.g., foodnetwork.com/recipes/...)"
+                className="flex-1 px-3 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 shadow-sm"
+              >
+                {loading ? (
+                  <span className="flex items-center">
+                    <Loader2 className="animate-spin mr-2" size={18} />
+                    {useLLM ? 'Processing...' : 'Importing...'}
+                  </span>
+                ) : (
+                  'Import'
+                )}
+              </button>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                role="switch"
+                id="scraping-toggle"
+                aria-checked={useLLM}
+                onClick={() => setUseLLM(!useLLM)}
+                className={`${useLLM ? 'bg-blue-600' : 'bg-gray-200'} relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+              >
+                <span className="sr-only">Use AI-Powered Scraping</span>
+                <span
+                  className={`${useLLM ? 'translate-x-5' : 'translate-x-1'} inline-block h-3 w-3 transform rounded-full bg-white transition-transform`}
+                />
+              </button>
+              <span className="text-xs text-gray-500">
+                Enable AI-powered recipe extraction (Recommended for better accuracy)
+              </span>
+            </div>
+          </div>
+        </form>
+      ) : (
+        <div className="space-y-6">
+          {/* Ingredient Input */}
+          <div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddIngredient()}
+                placeholder="Add ingredients..."
+                className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={handleAddIngredient}
+                className="bg-blue-500 text-white px-4 rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {store.ingredients.map((ing) => (
+                <span
+                  key={ing.id}
+                  className="bg-blue-100 px-3 py-1 rounded-full flex items-center"
+                >
+                  {ing.name}
+                  <button 
+                    onClick={() => store.removeIngredient(ing.id)}
+                    className="ml-2 hover:text-red-500"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Dietary Restrictions */}
+          <div>
+            <h3 className="font-medium mb-2">Dietary Restrictions</h3>
+            <div className="flex flex-wrap gap-2">
+              {dietaryOptions.map((option) => (
+                <button
+                  key={option}
+                  onClick={() => {
+                    const isSelected = store.dietary.includes(option);
+                    store.setDietary(
+                      isSelected
+                        ? store.dietary.filter(d => d !== option)
+                        : [...store.dietary, option]
+                    );
+                  }}
+                  className={`px-3 py-1 rounded-full border transition-colors ${
+                    store.dietary.includes(option)
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'border-gray-300 hover:border-blue-500'
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Difficulty Selection */}
+          <div>
+            <h3 className="font-medium mb-2">Difficulty Level</h3>
+            <div className="flex gap-3">
+              {difficultyLevels.map((level) => (
+                <button
+                  key={level}
+                  onClick={() => store.setDifficulty(level)}
+                  className={`px-4 py-2 rounded-md border transition-colors ${
+                    store.difficulty === level
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'border-gray-300 hover:border-blue-500'
+                  }`}
+                >
+                  {level.charAt(0).toUpperCase() + level.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Meal Type Selection */}
+          <div className="grid grid-cols-3 gap-3">
+            {mealTypes.map((type) => (
+              <button
+                key={type}
+                onClick={() => store.setMealType(type)}
+                className={`p-4 rounded-lg border ${
+                  store.mealType === type
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-blue-200'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+
+          {/* Generated Recipes */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center p-8">
+              <div className="mb-4">
+                <ChefHat className="w-12 h-12 text-blue-500 animate-spin" />
+              </div>
+              <p className="text-gray-600">Crafting your recipe...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center p-4">
+              <p className="text-red-500">{error}</p>
+              <button
+                onClick={handleGenerateRecipe}
+                className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : generatedRecipes.length > 0 ? (
+            <div className="grid gap-4">
+              {generatedRecipes.map((recipe) => (
+                <div key={recipe.tempId} className="p-4 bg-white rounded-lg shadow">
+                  <h3 className="text-lg font-semibold mb-4">{recipe.title}</h3>
+                  <div className="space-y-4">
+                    {recipe.description && (
+                      <p className="text-gray-600">{recipe.description}</p>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-4">
+                      {recipe.prepTime && (
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-center mb-1">
+                            <Clock className="w-4 h-4 mr-1" />
+                            <span>Prep:</span>
+                          </div>
+                          <span>{recipe.prepTime}</span>
+                        </div>
+                      )}
+                      {recipe.cookTime && (
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-center mb-1">
+                            <Clock className="w-4 h-4 mr-1" />
+                            <span>Cook:</span>
+                          </div>
+                          <span>{recipe.cookTime}</span>
+                        </div>
+                      )}
+                      {recipe.difficulty && (
+                        <div className="flex flex-col items-center">
+                          <div className="flex items-center mb-1">
+                            <ChefHat className="w-4 h-4 mr-1" />
+                            <span>Difficulty:</span>
+                          </div>
+                          <span className={
+                            recipe.difficulty === 'advanced' ? 'text-red-600' :
+                            recipe.difficulty === 'intermediate' ? 'text-yellow-600' :
+                            'text-green-600'
+                          }>{recipe.difficulty}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {recipe.nutrition && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium mb-2">Nutrition Facts</h4>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <span className="font-medium">Calories:</span>{' '}
+                            {recipe.nutrition.calories}
+                          </div>
+                          <div>
+                            <span className="font-medium">Protein:</span>{' '}
+                            {recipe.nutrition.protein}g
+                          </div>
+                          <div>
+                            <span className="font-medium">Carbs:</span>{' '}
+                            {recipe.nutrition.carbs}g
+                          </div>
+                        </div>
+                        {recipe.nutrition.disclaimer && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            {recipe.nutrition.disclaimer}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <h4 className="font-medium mb-2">Ingredients:</h4>
+                      <ul className="list-disc list-inside space-y-1">
+                        {recipe.ingredients.map((ingredient, i) => (
+                          <li key={i}>
+                            {typeof ingredient === 'string'
+                              ? ingredient
+                              : `${ingredient.amount} ${ingredient.item}`}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4 className="font-medium mb-2">Instructions:</h4>
+                      <ol className="list-decimal list-inside space-y-2">
+                        {recipe.instructions.map((instruction, i) => (
+                          <li key={i} className="leading-relaxed">
+                            {instruction}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    <button
+                      onClick={() => handleSaveRecipe(recipe)}
+                      disabled={saving[recipe.tempId] || !user}
+                      className="w-full mt-4 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {saving[recipe.tempId] ? (
+                        <>
+                          <ChefHat className="h-5 w-5 animate-spin" />
+                          <span>Generating Image...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-5 w-5" />
+                          <span>{!user ? 'Sign in to save recipe' : 'Save Recipe'}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center p-4">
+              <p className="text-gray-600">No recipes generated yet.</p>
+            </div>
+          )}
+
           <button
-            type="button"
-            role="switch"
-            id="scraping-toggle"
-            aria-checked={useLLM}
-            onClick={() => setUseLLM(!useLLM)}
-            className={`${useLLM ? 'bg-blue-600' : 'bg-gray-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+            onClick={handleGenerateRecipe}
+            disabled={!store.mealType || store.ingredients.length === 0}
+            className="w-full mt-6 bg-blue-500 text-white py-2 rounded-lg
+              disabled:bg-gray-300 disabled:cursor-not-allowed
+              hover:bg-blue-600 transition-colors"
           >
-            <span className="sr-only">Use AI-Powered Scraping</span>
-            <span
-              className={`${useLLM ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-            />
+            Generate Recipe
           </button>
         </div>
-        
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? (
-            <span className="flex items-center justify-center">
-              <Loader2 className="animate-spin mr-2" size={18} />
-              {useLLM ? 'Processing with AI...' : 'Importing...'}
-            </span>
-          ) : (
-            'Import Recipe'
-          )}
-        </button>
-      </form>
+      )}
 
       {error && (
         <motion.div
@@ -238,13 +648,6 @@ try {
         </motion.div>
       )}
 
-      <div className="mt-8">
-        <h2 className="text-2xl font-bold mb-4">Or Generate a Recipe</h2>
-        <p className="text-gray-600 mb-4">
-          Don't have a recipe URL? Generate a recipe based on your available ingredients!
-        </p>
-        <RecipeModal />
-      </div>
     </div>
   );
 }

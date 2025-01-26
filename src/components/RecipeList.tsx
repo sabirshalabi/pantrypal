@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Clock, Users, Plus, CookingPot, ImageIcon, BookOpen, Bot } from 'lucide-react';
+import { Clock, Users, Plus, CookingPot, ImageIcon, BookOpen } from 'lucide-react';
 import type { Recipe } from '../services/recipeService';
 import { getUserRecipes } from '../services/recipeService';
 import { useAuth } from '../hooks/useAuth';
@@ -15,13 +15,12 @@ export function RecipeList() {
   useEffect(() => {
     async function loadRecipes() {
       if (!user) return;
-      
+
       try {
         const userRecipes = await getUserRecipes(user.uid);
         setRecipes(userRecipes);
       } catch (err) {
         console.error('Error loading recipes:', err);
-        // If there's an error, we'll just show an empty state
         setRecipes([]);
       } finally {
         setLoading(false);
@@ -30,6 +29,7 @@ export function RecipeList() {
 
     loadRecipes();
   }, [user]);
+
 
   if (loading) {
     return (
@@ -44,8 +44,10 @@ export function RecipeList() {
       <div className="flex justify-center mb-4">
         <CookingPot className="h-12 w-12 text-gray-400" />
       </div>
-      <h3 className="text-lg font-medium text-gray-900 mb-2">No recipes yet</h3>
-      <p className="text-gray-500 mb-6">Start building your recipe collection!</p>
+      <h3 className="text-lg font-medium text-gray-900 mb-2">No recipes found</h3>
+      <p className="text-gray-500 mb-6">
+        Start building your recipe collection!
+      </p>
       <Link
         to="/recipes/import"
         className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -87,7 +89,7 @@ export function RecipeList() {
           <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
             {recipe.title}
           </h3>
-          
+
           <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
             {recipe.servings && (
               <div className="flex items-center gap-1">
@@ -112,13 +114,6 @@ export function RecipeList() {
               </div>
             )}
           </div>
-          
-          {recipe.metadata?.source === 'AI-generated' && (
-            <div className="mt-3 flex items-center gap-1 text-xs text-gray-500">
-              <Bot className="h-3 w-3" />
-              <span>AI Generated</span>
-            </div>
-          )}
         </div>
       </Link>
     );
@@ -126,33 +121,37 @@ export function RecipeList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Your Recipes</h2>
-        <Link
-          to="/recipes/import"
-          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Add Recipe
-        </Link>
-      </div>
-
-      {recipes.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {recipes.map((recipe) => (
-            <motion.div
-              key={recipe.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold">Your Recipes</h2>
+          <div className="flex gap-4">
+            <Link
+              to="/recipes/import"
+              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              <RecipeCard recipe={recipe} />
-            </motion.div>
-          ))}
+              <span className="sr-only">Add Recipe</span>
+              <Plus className="h-5 w-5" />
+            </Link>
+          </div>
         </div>
-      )}
+
+        {recipes.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {recipes.map((recipe) => (
+              <motion.div
+                key={recipe.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              >
+                <RecipeCard recipe={recipe} />
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -18,6 +18,23 @@ export interface RecipeIngredient {
   amount: string;
 }
 
+export interface SpoonacularIngredient {
+  name: string;
+  amount: number;
+  unit: string;
+  aisle: string;
+}
+
+export interface SpoonacularMetadata {
+  id: number;
+  missedIngredients: SpoonacularIngredient[];
+  usedIngredients: SpoonacularIngredient[];
+  unusedIngredients: SpoonacularIngredient[];
+  missedIngredientCount: number;
+  usedIngredientCount: number;
+  likes: number;
+}
+
 export interface Recipe {
   title: string;
   description?: string;
@@ -43,6 +60,7 @@ export interface Recipe {
     basedOn: string[];
     filters: RecipeFilters;
   };
+  spoonacular?: SpoonacularMetadata;
 }
 
 export interface RecipeFilters {
@@ -179,6 +197,63 @@ export async function deleteRecipe(recipeId: string) {
   } catch (error) {
     console.error('Error deleting recipe:', error);
     throw new Error('Failed to delete recipe');
+  }
+}
+
+export async function findByIngredients(
+  ingredients: string[],
+  options: {
+    number?: number;
+    ranking?: 1 | 2;
+    ignorePantry?: boolean;
+  } = {}
+): Promise<Recipe[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/spoonacular/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ingredients: ingredients.join(','),
+        number: options.number || 10,
+        ranking: options.ranking || 2,
+        ignorePantry: options.ignorePantry || false
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to search recipes by ingredients');
+    }
+
+    const recipes = await response.json();
+    return recipes.map((recipe: any) => ({
+      title: recipe.title,
+      imageUrl: recipe.image,
+      sourceUrl: `https://spoonacular.com/recipes/${recipe.id}`,
+      ingredients: [], // Will be populated when viewing full recipe
+      instructions: [], // Will be populated when viewing full recipe
+      userId: '', // Will be set when saving
+      spoonacular: {
+        id: recipe.id,
+        missedIngredients: recipe.missedIngredients,
+        usedIngredients: recipe.usedIngredients,
+        unusedIngredients: recipe.unusedIngredients,
+        missedIngredientCount: recipe.missedIngredientCount,
+        usedIngredientCount: recipe.usedIngredientCount,
+        likes: recipe.likes
+      },
+      metadata: {
+        source: 'spoonacular',
+        generatedAt: new Date().toISOString(),
+        basedOn: ingredients,
+        filters: { ingredients }
+      }
+    }));
+  } catch (error) {
+    console.error('Error searching recipes by ingredients:', error);
+    throw error instanceof Error ? error : new Error('Failed to search recipes by ingredients');
   }
 }
 
