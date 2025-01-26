@@ -215,7 +215,11 @@ async function intelligentExtraction(html) {
 }
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://pantrypal-sabirshalabi.vercel.app'],
+  origin: [
+    'http://localhost:5173', 
+    'https://pantrypal-sabirshalabi.vercel.app',
+    'https://pantrypal-liard.vercel.app'
+  ],
   methods: ['GET', 'POST'],
   credentials: true
 }));
@@ -541,7 +545,7 @@ ${cleanHtml}`;
   }
 });
 
-export default app;
+app.listen(process.env.PORT || 3001, () => console.log(`Server listening on port ${process.env.PORT || 3001}`));
 
 // Recipe generation utilities
 const RECIPE_DIFFICULTY_LEVELS = ['beginner', 'intermediate', 'advanced'];
@@ -736,4 +740,4 @@ Requirements:
   }
 });
 
-app.listen(3001, () => console.log('Server listening on port 3001'));
+export default app;
