@@ -600,6 +600,3 @@ try {
     </div>
   );
 }
-
-
-git commit 
