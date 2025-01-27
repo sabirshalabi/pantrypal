@@ -629,6 +629,14 @@ app.post('/api/generate-recipe', async (req, res) => {
           type: SchemaType.STRING,
           description: "Brief description of the recipe",
         },
+        prepTime: {
+          type: SchemaType.STRING,
+          description: "Preparation time (e.g., '15 minutes')",
+        },
+        cookTime: {
+          type: SchemaType.STRING,
+          description: "Cooking time (e.g., '30 minutes')",
+        },
         ingredients: {
           type: SchemaType.ARRAY,
           items: {
@@ -654,7 +662,7 @@ app.post('/api/generate-recipe', async (req, res) => {
           },
         },
       },
-      required: ["title", "description", "ingredients", "instructions"],
+      required: ["title", "description", "prepTime", "cookTime", "ingredients", "instructions"],
     };
 
     // Create a model instance with the schema
@@ -662,17 +670,29 @@ app.post('/api/generate-recipe', async (req, res) => {
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
     // Generate the prompt
-    const prompt = `Create a unique recipe that combines elements from these recipes: ${uniqueRecipes.slice(0, 3).map(r => r.strMeal).join(', ')}. 
+    const recipeNames = uniqueRecipes.slice(0, 3).map(r => r.strMeal);
+    const prompt = `Create a unique recipe that combines elements from these recipes: ${recipeNames.join(', ')}. 
     Use these ingredients: ${filters.ingredients.join(', ')}
-    ${filters.difficulty ? `Difficulty level: ${filters.difficulty}` : ''}
     
-    Return a JSON object with:
-    - A creative title
-    - A brief description
-    - A detailed list of ingredients with amounts
-    - Clear step-by-step instructions
+    Return a JSON object with the following structure:
+    {
+      "title": "string",
+      "description": "string",
+      "prepTime": "string (e.g., '15 minutes')",
+      "cookTime": "string (e.g., '30 minutes')",
+      "ingredients": [
+        {
+          "item": "string",
+          "amount": "string",
+          "unit": "string"
+        }
+      ],
+      "instructions": [
+        "string"
+      ]
+    }
     
-    Make it unique and interesting!`;
+    Make it unique and interesting! Ensure all JSON properties are properly quoted and arrays use proper JSON syntax. Include realistic prep and cooking times.`;
 
     console.log('Sending prompt to Gemini:', prompt);
     const result = await model.generateContent({
@@ -684,7 +704,9 @@ app.post('/api/generate-recipe', async (req, res) => {
     
     let generatedRecipe;
     try {
-      generatedRecipe = JSON.parse(response.text());
+      // Clean the response text by removing markdown code block syntax
+      const responseText = response.text().replace(/```json\n|\n```/g, '').trim();
+      generatedRecipe = JSON.parse(responseText);
       console.log('Successfully parsed Gemini response');
     } catch (error) {
       console.error('Failed to parse Gemini response:', error);
@@ -693,7 +715,8 @@ app.post('/api/generate-recipe', async (req, res) => {
     }
 
     // Step 4: Validate and enhance recipe
-    if (!generatedRecipe?.ingredients?.length || !generatedRecipe?.instructions?.length) {
+    if (!generatedRecipe?.ingredients?.length || !generatedRecipe?.instructions?.length || 
+        !generatedRecipe?.prepTime || !generatedRecipe?.cookTime) {
       console.error('Generated recipe is missing required components:', generatedRecipe);
       throw new Error('Generated recipe is missing required components');
     }
