@@ -107,12 +107,14 @@ export function MealPlanning() {
   };
 
   const getCurrentWeekPlan = () => {
-    const weekStart = startOfWeek(currentWeek).getTime();
-    const weekEnd = endOfWeek(currentWeek).getTime();
+    const weekStart = startOfWeek(currentWeek, { weekStartsOn: 0 }).getTime();
+    const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 0 }).getTime();
     
-    return mealPlans.find(plan => 
-      plan.startDate >= weekStart && plan.startDate <= weekEnd
-    );
+    return mealPlans.find(plan => {
+      // Normalize the plan's startDate to the start of its day to avoid time mismatch
+      const planStartDate = startOfWeek(new Date(plan.startDate), { weekStartsOn: 0 }).getTime();
+      return planStartDate >= weekStart && planStartDate <= weekEnd;
+    });
   };
 
   const currentPlan = getCurrentWeekPlan();
@@ -176,7 +178,7 @@ export function MealPlanning() {
             </div>
 
             {/* Other Items */}
-            {currentPlan.otherItems?.length > 0 && (
+            {(currentPlan?.otherItems?.length ?? 0) > 0 && (
               <div className="mt-6 pt-6 border-t border-gray-100">
                 <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Other Items</h3>
                 <div className="grid gap-2">
@@ -313,6 +315,7 @@ export function MealPlanning() {
         mealPlan={selectedPlan}
         meals={meals}
         stores={stores}
+        currentWeek={currentWeek}
       />
     </div>
   );

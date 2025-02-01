@@ -31,6 +31,7 @@ export interface DailyMeal {
 export interface MealPlan {
   id: string;
   userId: string;
+  name: string;
   startDate: number;
   endDate: number;
   meals: DailyMeal[];

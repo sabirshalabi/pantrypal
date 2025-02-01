@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar } from 'lucide-react';
 import { database } from '../lib/firebase';
-import { ref, push, update } from 'firebase/database';
+import { ref, push, set, update } from 'firebase/database';
 import { useAuth } from '../hooks/useAuth';
-import { MealPlan, Meal, DailyMeal, OtherItem } from '../types/Meal';
+import { MealPlan, Meal, DailyMeal, MealPlanItem } from '../types/Meal';
 import { Store } from '../types/Store';
-import { format, startOfWeek, addDays } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays } from 'date-fns';
+import toast from 'react-hot-toast';
 
 interface MealPlanModalProps {
   isOpen: boolean;
@@ -13,16 +14,17 @@ interface MealPlanModalProps {
   mealPlan?: MealPlan;
   meals: Meal[];
   stores: Store[];
+  currentWeek?: Date;
 }
 
-export function MealPlanModal({ isOpen, onClose, mealPlan, meals, stores = [] }: MealPlanModalProps) {
+export function MealPlanModal({ isOpen, onClose, mealPlan, meals, stores = [], currentWeek }: MealPlanModalProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
-    startDate: startOfWeek(new Date()).getTime(),
-    endDate: addDays(startOfWeek(new Date()), 6).getTime(),
+    startDate: startOfWeek(currentWeek || new Date()).getTime(),
+    endDate: addDays(startOfWeek(currentWeek || new Date()), 6).getTime(),
     meals: [] as DailyMeal[],
-    otherItems: [] as OtherItem[]
+    otherItems: [] as MealPlanItem[]
   });
 
   useEffect(() => {
@@ -32,11 +34,11 @@ export function MealPlanModal({ isOpen, onClose, mealPlan, meals, stores = [] }:
         startDate: mealPlan.startDate,
         endDate: mealPlan.endDate,
         meals: mealPlan.meals,
-        otherItems: mealPlan.otherItems
+        otherItems: mealPlan.otherItems || []
       });
     } else {
       // Initialize with empty meals for each day of the week
-      const startDate = startOfWeek(new Date()).getTime();
+      const startDate = startOfWeek(currentWeek || new Date()).getTime();
       const initialMeals = Array.from({ length: 7 }, (_, i) => ({
         id: Date.now().toString() + i,
         date: addDays(new Date(startDate), i).getTime(),
@@ -45,7 +47,7 @@ export function MealPlanModal({ isOpen, onClose, mealPlan, meals, stores = [] }:
       }));
 
       setFormData({
-        name: format(new Date(), "'Week of' MMM d, yyyy"),
+        name: format(new Date(startDate), "'Week of' MMM d, yyyy"),
         startDate,
         endDate: addDays(new Date(startDate), 6).getTime(),
         meals: initialMeals,
@@ -85,7 +87,7 @@ export function MealPlanModal({ isOpen, onClose, mealPlan, meals, stores = [] }:
     setFormData({ ...formData, otherItems: newItems });
   };
 
-  const handleOtherItemChange = (index: number, field: keyof OtherItem, value: any) => {
+  const handleOtherItemChange = (index: number, field: keyof MealPlanItem, value: any) => {
     const newItems = [...(formData.otherItems || [])];
     newItems[index] = { ...(newItems[index] || {}), [field]: value };
     setFormData({ ...formData, otherItems: newItems });
@@ -98,40 +100,52 @@ export function MealPlanModal({ isOpen, onClose, mealPlan, meals, stores = [] }:
     try {
       const timestamp = Date.now();
       
+      // Normalize dates to start of day to ensure consistent timestamps
+      const normalizedStartDate = startOfWeek(new Date(formData.startDate), { weekStartsOn: 0 }).getTime();
+      const normalizedEndDate = endOfWeek(new Date(formData.startDate), { weekStartsOn: 0 }).getTime();
+      
+      // Update meals array with normalized dates
+      const normalizedMeals = formData.meals.map((meal, index) => ({
+        ...meal,
+        date: addDays(new Date(normalizedStartDate), index).getTime()
+      }));
+
       if (mealPlan) {
         // Update existing meal plan
         const updateData = {
           name: formData.name,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          meals: formData.meals || [],
+          startDate: normalizedStartDate,
+          endDate: normalizedEndDate,
+          meals: normalizedMeals,
           otherItems: formData.otherItems || [],
           updatedAt: timestamp
         };
         await update(ref(database, `mealPlans/${user.uid}/${mealPlan.id}`), updateData);
       } else {
         // Create new meal plan
-        const planRef = push(ref(database, `mealPlans/${user.uid}`));
-        if (!planRef.key) throw new Error('Failed to generate plan ID');
+        const planRef = ref(database, `mealPlans/${user.uid}`);
+        const newPlanRef = push(planRef);
         
         const newPlan = {
-          id: planRef.key,
+          id: newPlanRef.key,
           name: formData.name,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          meals: formData.meals || [],
+          startDate: normalizedStartDate,
+          endDate: normalizedEndDate,
+          meals: normalizedMeals,
           otherItems: formData.otherItems || [],
           userId: user.uid,
           createdAt: timestamp,
           updatedAt: timestamp
         };
-        await update(planRef, newPlan);
+        
+        await set(newPlanRef, newPlan);
       }
-
+      
+      toast.success('Meal plan saved successfully!');
       onClose();
     } catch (error) {
       console.error('Error saving meal plan:', error);
-      alert('Failed to save meal plan. Please try again.');
+      toast.error('Failed to save meal plan. Please try again.');
     }
   };
 

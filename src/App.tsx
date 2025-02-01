@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { PrivateRoute } from './components/PrivateRoute';
@@ -22,6 +23,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <Toaster position="top-center" />
       <Routes>
         <Route
           element={

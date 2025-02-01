@@ -47,6 +47,7 @@ coverage/
 
 # Documentation
 docs/
+cline_docs/
 
 # Misc
 *.pem
